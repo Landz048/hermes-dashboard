@@ -1,15 +1,28 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// POST { kind?, title, prompt?, sideEffecting? }
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { kind = "user_prompt", title, prompt, sideEffecting = false } = body;
+    const {
+      kind = "user_prompt",
+      title,
+      prompt,
+      text,
+      message,
+      sideEffecting = false,
+    } = body;
 
-    if (!title && !prompt) {
+    const finalPrompt = prompt || text || message || title || "";
+    const finalTitle =
+      title ||
+      (typeof finalPrompt === "string" && finalPrompt.length > 0
+        ? finalPrompt.slice(0, 80)
+        : "Nova solicitação");
+
+    if (!finalPrompt && !finalTitle) {
       return NextResponse.json(
-        { error: "É necessário informar ao menos um título ou prompt." },
+        { error: "É necessário informar ao menos um comando ou prompt." },
         { status: 400 }
       );
     }
@@ -17,18 +30,18 @@ export async function POST(req: Request) {
     const request = await prisma.agentRequest.create({
       data: {
         kind,
-        title: title || prompt?.slice(0, 80) || "Nova solicitação",
-        prompt: prompt || title,
+        title: finalTitle,
+        prompt: finalPrompt,
         sideEffecting: Boolean(sideEffecting),
         status: sideEffecting ? "awaiting_approval" : "queued",
       },
     });
 
     return NextResponse.json({ ok: true, request });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Erro no dispatch:", error);
     return NextResponse.json(
-      { error: "Falha interna ao criar requisição" },
+      { error: error?.message || "Falha interna ao criar requisição" },
       { status: 500 }
     );
   }
