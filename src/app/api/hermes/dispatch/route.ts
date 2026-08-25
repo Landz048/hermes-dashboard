@@ -1,22 +1,35 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// POST { kind?, title, prompt?, sideEffecting? } → queue work for Hermes.
-// Side-effecting work waits for approval; safe work is queued immediately.
+// POST { kind?, title, prompt?, sideEffecting? }
 export async function POST(req: Request) {
-  const b = await req.json().catch(() => ({}));
-  const title = (b.title || b.prompt || "").toString().trim();
-  if (!title) return NextResponse.json({ error: "title or prompt required" }, { status: 400 });
-  const sideEffecting = Boolean(b.sideEffecting);
-  const row = await prisma.agentRequest.create({
-    data: {
-      origin: "web",
-      kind: (b.kind || "oneshot").toString(),
-      title: title.slice(0, 200),
-      prompt: (b.prompt ?? b.title ?? "").toString() || null,
-      sideEffecting,
-      status: sideEffecting ? "awaiting_approval" : "queued",
-    },
-  });
-  return NextResponse.json({ request: row });
+  try {
+    const body = await req.json();
+    const { kind = "user_prompt", title, prompt, sideEffecting = false } = body;
+
+    if (!title && !prompt) {
+      return NextResponse.json(
+        { error: "É necessário informar ao menos um título ou prompt." },
+        { status: 400 }
+      );
+    }
+
+    const request = await prisma.agentRequest.create({
+      data: {
+        kind,
+        title: title || prompt?.slice(0, 80) || "Nova solicitação",
+        prompt: prompt || title,
+        sideEffecting: Boolean(sideEffecting),
+        status: sideEffecting ? "awaiting_approval" : "queued",
+      },
+    });
+
+    return NextResponse.json({ ok: true, request });
+  } catch (error) {
+    console.error("Erro no dispatch:", error);
+    return NextResponse.json(
+      { error: "Falha interna ao criar requisição" },
+      { status: 500 }
+    );
+  }
 }
