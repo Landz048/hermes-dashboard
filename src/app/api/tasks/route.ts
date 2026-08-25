@@ -9,13 +9,9 @@ const DATABASE_ID = "1264208d-f768-4604-b4cb-09f4d6fd41e3"; // Max's Tasks DB
 export async function GET() {
   try {
     if (!NOTION_API_KEY) {
-      // Return mock data if no API key
+      // Retorna lista vazia caso não haja chave da API configurada
       return NextResponse.json({
-        tasks: [
-          { id: "1", name: "Review Polymarket bot strategy", status: "In progress", priority: "High", category: "Research" },
-          { id: "2", name: "Build Hermy HQ dashboard", status: "In progress", priority: "High", category: "Content" },
-          { id: "3", name: "Daily brief automation", status: "Approved", priority: "Medium", category: "Admin" },
-        ],
+        tasks: [],
       });
     }
 
@@ -113,5 +109,44 @@ export async function PATCH(req: Request) {
   } catch (error) {
     console.error("Update task error:", error);
     return NextResponse.json({ error: "Failed to update task" }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    let id = searchParams.get("id");
+
+    if (!id) {
+      const body = await req.json().catch(() => ({}));
+      id = body.id;
+    }
+
+    if (!id) {
+      return NextResponse.json({ error: "ID da tarefa não fornecido" }, { status: 400 });
+    }
+
+    if (!NOTION_API_KEY) {
+      return NextResponse.json({ success: true, message: "Mock - tarefa arquivada/excluída" });
+    }
+
+    // No Notion, a exclusão de uma página é feita arquivando-a
+    const res = await fetch(`https://api.notion.com/v1/pages/${id}`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${NOTION_API_KEY}`,
+        "Notion-Version": "2022-06-28",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        archived: true,
+      }),
+    });
+
+    const data = await res.json();
+    return NextResponse.json({ success: true, task: data });
+  } catch (error) {
+    console.error("Delete task error:", error);
+    return NextResponse.json({ error: "Failed to delete task" }, { status: 500 });
   }
 }
