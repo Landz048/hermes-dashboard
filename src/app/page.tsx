@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { ChevronRight, Trash2, Lightbulb } from "lucide-react";
 import { HermesBriefing } from "@/components/hermes-briefing";
 import { ApprovalInbox } from "@/components/approval-inbox";
+import { ProposalsCard } from "@/components/proposal-card";
 
 // ── Types ─────────────────────────────────────────────────
 interface BuildIdea { title: string; description: string; effort: string }
@@ -307,14 +308,24 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* ── Métricas Comerciais (Propostas Criadas) ──────── */}
+        <div className="mt-10">
+          <SectionLabel>Métricas Comerciais</SectionLabel>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div className="hq-rise" style={rise(3)}>
+              <ProposalsCard />
+            </div>
+          </div>
+        </div>
+
         {/* ── Operação: Quadro Kanban + Ideias ────────────── */}
         <div className="mt-10">
           <SectionLabel>Operação & Execução</SectionLabel>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            <div className="hq-rise" style={rise(3)}>
+            <div className="hq-rise" style={rise(4)}>
               <HermesKanbanPanel kanban={data.hermesKanban} />
             </div>
-            <div className="hq-rise" style={rise(4)}>
+            <div className="hq-rise" style={rise(5)}>
               <IdeasPanel buildIdeas={data.topBuildIdeas} />
             </div>
           </div>

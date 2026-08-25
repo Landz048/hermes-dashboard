@@ -33,12 +33,14 @@ const RUN_TIMEOUT_MS = Number(process.env.BRIDGE_RUN_TIMEOUT_MS || 240000);
 const WIKI_DIR = process.env.HERMES_WIKI || path.join(os.homedir(), ".hermes", "wiki");
 const BRIEF_HOUR = Number(process.env.BRIEF_HOUR || 8);   // local hour to auto-generate the daily brief
 const BRIEF_PROMPT =
-  "You are the operator's chief of staff. Produce today's brief. Read your memory wiki open-loops " +
-  "(~/.hermes/wiki), the kanban board, and recent activity. Output ONLY valid JSON (no prose, no code fences) " +
-  'in exactly this shape: {"greeting":"one warm line","summary":"2-3 sentences on where things stand",' +
-  '"sections":[{"label":"Needs your decision","items":["..."]},{"label":"Top priorities","items":["..."]},' +
-  '{"label":"Recently shipped","items":["..."]},{"label":"Next actions","items":["..."]}]}. ' +
-  "Keep every item short, concrete, and specific. Omit a section if it has nothing.";
+  const BRIEF_PROMPT =
+  "Você é o assistente executivo e chefe de gabinete da operação. Crie o briefing do dia em português. " +
+  "Analise a memória wiki (~/.hermes/wiki), o quadro kanban e as atividades recentes. " +
+  "Responda EXCLUSIVAMENTE em formato JSON válido (sem introduções, sem blocos de código markdown) " +
+  'com a estrutura exata: {"greeting":"uma saudação calorosa em 1 linha","summary":"2 a 3 frases resumindo a situação geral",' +
+  '"sections":[{"label":"Decisões Pendentes","items":["..."]},{"label":"Prioridades Principais","items":["..."]},' +
+  '{"label":"Concluído Recentemente","items":["..."]},{"label":"Próximas Ações","items":["..."]}]}. ' +
+  "Mantenha todos os itens curtos, concretos e em português. Omita seções que não tenham itens.";
 let lastBriefDate = null;
 
 const DB_URL = process.env.DATABASE_URL || "";
