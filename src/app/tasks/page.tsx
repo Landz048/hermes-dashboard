@@ -45,7 +45,7 @@ export default function TasksPage() {
   const fetchTasks = async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/tasks");
+      const res = await fetch("/api/tasks?all=true");
       const data = await res.json();
       if (data.tasks) setTasks(data.tasks);
     } catch (err) {
@@ -60,7 +60,6 @@ export default function TasksPage() {
   }, []);
 
   const handleUpdateStatus = async (taskId: string, newStatus: string) => {
-    // Atualização otimista na tela
     setTasks((prev) =>
       prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t))
     );
@@ -120,11 +119,19 @@ export default function TasksPage() {
 
   const getColumnTasks = (colId: string) => {
     return tasks.filter((t) => {
-      const s = (t.status || "").toLowerCase().replace("-", "_").trim();
-      if (colId === "todo") return s === "todo" || s === "backlog" || s === "to_do";
-      if (colId === "approved") return s === "approved" || s === "aprovado";
-      if (colId === "in_progress") return s === "in_progress" || s === "doing" || s === "progress";
-      if (colId === "done") return s === "done" || s === "concluido" || s === "complete";
+      const s = (t.status || "").toLowerCase().replace(/[-_]/g, "").trim();
+      if (colId === "todo") {
+        return s === "todo" || s === "backlog" || s === "pending" || s === "" || (!s.includes("app") && !s.includes("prog") && !s.includes("don") && !s.includes("conc"));
+      }
+      if (colId === "approved") {
+        return s === "approved" || s === "aprovado";
+      }
+      if (colId === "in_progress") {
+        return s === "inprogress" || s === "doing" || s === "progress" || s === "andamento";
+      }
+      if (colId === "done") {
+        return s === "done" || s === "concluido" || s === "complete" || s === "finalizado";
+      }
       return false;
     });
   };
@@ -147,7 +154,6 @@ export default function TasksPage() {
         </button>
       </div>
 
-      {/* Grid de Colunas com Drag & Drop */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         {COLUMNS.map((col, colIdx) => {
           const colTasks = getColumnTasks(col.id);
@@ -216,7 +222,6 @@ export default function TasksPage() {
                           </span>
                         </div>
 
-                        {/* Botões de avançar/voltar coluna */}
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           {colIdx > 0 && (
                             <button
@@ -251,7 +256,6 @@ export default function TasksPage() {
         })}
       </div>
 
-      {/* Modal Adicionar Task */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-xl max-w-md w-full p-6 shadow-2xl space-y-4">
