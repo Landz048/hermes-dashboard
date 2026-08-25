@@ -1,9 +1,9 @@
 "use client";
 
 /* ───────────────────────────────────────────────────────────
-   Hermy HQ · Chief-of-Staff brief
-   Renders Hermes' daily brief (GET /api/hermes/briefing), a live
-   "needs you" chip, and a Generate-now button (POST → bridge runs it).
+   Hermy HQ · Briefing do Assistente Executivo
+   Renderiza o resumo diário do Hermes (GET /api/hermes/briefing),
+   alerta de ações pendentes e botão de gerar resumo agora.
    ─────────────────────────────────────────────────────────── */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -21,18 +21,18 @@ interface Briefing {
 function timeAgo(d: string) {
   const diff = Date.now() - new Date(d).getTime();
   const m = Math.floor(diff / 60000), h = Math.floor(diff / 3600000), dy = Math.floor(diff / 86400000);
-  if (dy > 0) return `${dy}d ago`;
-  if (h > 0) return `${h}h ago`;
-  if (m > 0) return `${m}m ago`;
-  return "just now";
+  if (dy > 0) return `${dy}d atrás`;
+  if (h > 0) return `${h}h atrás`;
+  if (m > 0) return `${m}m atrás`;
+  return "agora há pouco";
 }
 
-// tone a section by its intent
+// Tom da seção conforme a intenção
 function sectionTone(label: string): string {
   const l = label.toLowerCase();
-  if (l.includes("decision") || l.includes("approv")) return "var(--warn)";
-  if (l.includes("ship") || l.includes("done") || l.includes("win")) return "var(--up)";
-  if (l.includes("next") || l.includes("priorit")) return "var(--accent)";
+  if (l.includes("decision") || l.includes("approv") || l.includes("decis") || l.includes("pend")) return "var(--warn)";
+  if (l.includes("ship") || l.includes("done") || l.includes("win") || l.includes("concl") || l.includes("feito")) return "var(--up)";
+  if (l.includes("next") || l.includes("priorit") || l.includes("prox") || l.includes("priorid")) return "var(--accent)";
   return "var(--text-3)";
 }
 
@@ -51,7 +51,6 @@ export function HermesBriefing() {
       ]);
       if (b) {
         setData(b);
-        // stop the "generating" spinner once a fresh brief lands
         if (generating && b.generatedAt && b.generatedAt !== genAt.current) setGenerating(false);
       }
       if (r) setPending(r.pending ?? 0);
@@ -78,7 +77,7 @@ export function HermesBriefing() {
       <div className="flex items-center justify-between gap-4 mb-3">
         <div className="flex items-center gap-2.5">
           <Sunrise className="w-4 h-4 text-[var(--accent)]" />
-          <Eyebrow>Chief of Staff</Eyebrow>
+          <Eyebrow>Assistente Executivo</Eyebrow>
           {!empty && (
             <span className="num text-[11px] text-[var(--text-3)]">· {timeAgo(data!.generatedAt as string)}</span>
           )}
@@ -87,12 +86,12 @@ export function HermesBriefing() {
           {pending > 0 && (
             <a href="/hermes" className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium num"
               style={{ color: "var(--warn)", background: "color-mix(in srgb, var(--warn) 12%, transparent)", border: "1px solid color-mix(in srgb, var(--warn) 24%, transparent)" }}>
-              {pending} need{pending === 1 ? "s" : ""} you <ArrowUpRight className="w-3 h-3" />
+              {pending} {pending === 1 ? "pendência requer você" : "pendências requerem você"} <ArrowUpRight className="w-3 h-3" />
             </a>
           )}
           <Button variant="ghost" size="sm" onClick={generate} disabled={generating}>
             <RefreshCw className={`w-3.5 h-3.5 ${generating ? "animate-spin" : ""}`} />
-            {generating ? "Generating…" : "Generate"}
+            {generating ? "Gerando resumo…" : "Gerar Resumo"}
           </Button>
         </div>
       </div>
@@ -100,11 +99,11 @@ export function HermesBriefing() {
       {empty ? (
         <div className="py-6 text-center">
           <p className="text-[14px] text-[var(--text-2)]">
-            {generating ? "Hermes is writing your brief… (~1 min)" : loaded ? "No brief yet." : "Loading…"}
+            {generating ? "O Hermes está redigindo seu resumo… (~1 min)" : loaded ? "Nenhum resumo diário ainda." : "Carregando…"}
           </p>
           {!generating && loaded && (
             <p className="mt-1 text-[12.5px] text-[var(--text-3)]">
-              It auto-generates each morning — or hit Generate to get one now.
+              Ele é gerado automaticamente toda manhã — ou clique em Gerar Resumo para criá-lo agora.
             </p>
           )}
         </div>
