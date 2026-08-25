@@ -64,6 +64,37 @@ export async function POST(req: Request) {
   }
 }
 
+// PATCH /api/tasks -> Atualiza o status/dados da tarefa (Drag & Drop)
+export async function PATCH(req: Request) {
+  try {
+    const body = await req.json();
+    const { id, status, priority, title, assignee } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: "ID é obrigatório" }, { status: 400 });
+    }
+
+    const updated = await prisma.hermesTask.update({
+      where: { id },
+      data: {
+        ...(status && { status: status.toLowerCase() }),
+        ...(priority !== undefined && { priority: Number(priority) }),
+        ...(title && { title: title.trim() }),
+        ...(assignee !== undefined && { assignee }),
+        updatedAt: new Date(),
+      },
+    });
+
+    return NextResponse.json({ ok: true, task: updated });
+  } catch (error: any) {
+    console.error("Erro ao atualizar tarefa:", error);
+    return NextResponse.json(
+      { error: error?.message || "Falha ao atualizar tarefa" },
+      { status: 500 }
+    );
+  }
+}
+
 // DELETE /api/tasks?id=xxx -> Exclui tarefa
 export async function DELETE(req: Request) {
   try {

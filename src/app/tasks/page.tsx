@@ -1,7 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Trash2, CheckCircle2, Clock, PlayCircle, ShieldCheck, X } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  CheckCircle2,
+  Clock,
+  PlayCircle,
+  ShieldCheck,
+  X,
+  ChevronRight,
+  ChevronLeft,
+  GripVertical,
+} from "lucide-react";
 
 interface Task {
   id: string;
@@ -29,6 +40,7 @@ export default function TasksPage() {
   const [priority, setPriority] = useState("1");
   const [assignee, setAssignee] = useState("Hermes");
   const [submitting, setSubmitting] = useState(false);
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
 
   const fetchTasks = async () => {
     try {
@@ -46,6 +58,24 @@ export default function TasksPage() {
   useEffect(() => {
     fetchTasks();
   }, []);
+
+  const handleUpdateStatus = async (taskId: string, newStatus: string) => {
+    // Atualização otimista na tela
+    setTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t))
+    );
+
+    try {
+      await fetch("/api/tasks", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: taskId, status: newStatus }),
+      });
+    } catch (err) {
+      console.error("Erro ao mover tarefa:", err);
+      fetchTasks();
+    }
+  };
 
   const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,7 +133,9 @@ export default function TasksPage() {
     <div className="relative z-10 w-full mx-auto pb-16">
       <div className="pt-4 pb-8 flex items-center justify-between">
         <div>
-          <span className="eyebrow text-xs text-zinc-500 uppercase tracking-wider block mb-1">Board de Operações</span>
+          <span className="eyebrow text-xs text-zinc-500 uppercase tracking-wider block mb-1">
+            Board de Operações
+          </span>
           <h1 className="text-4xl font-semibold tracking-tight text-zinc-100">Tasks</h1>
         </div>
         <button
@@ -115,34 +147,56 @@ export default function TasksPage() {
         </button>
       </div>
 
-      {/* Grid de Colunas */}
+      {/* Grid de Colunas com Drag & Drop */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        {COLUMNS.map((col) => {
+        {COLUMNS.map((col, colIdx) => {
           const colTasks = getColumnTasks(col.id);
           const Icon = col.icon;
           return (
-            <div key={col.id} className="rounded-xl border border-zinc-800/80 bg-zinc-950/50 p-4 flex flex-col min-h-[450px]">
+            <div
+              key={col.id}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (draggedTaskId) {
+                  handleUpdateStatus(draggedTaskId, col.id);
+                  setDraggedTaskId(null);
+                }
+              }}
+              className="rounded-xl border border-zinc-800/80 bg-zinc-950/50 p-4 flex flex-col min-h-[480px] transition-colors"
+            >
               <div className="flex items-center justify-between pb-3 border-b border-zinc-800/60 mb-3">
                 <div className="flex items-center gap-2">
                   <Icon className="w-4 h-4 text-zinc-400" />
-                  <span className="text-xs font-semibold tracking-wider text-zinc-300 uppercase">{col.label}</span>
+                  <span className="text-xs font-semibold tracking-wider text-zinc-300 uppercase">
+                    {col.label}
+                  </span>
                 </div>
                 <span className="text-xs num font-medium px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400">
                   {colTasks.length}
                 </span>
               </div>
 
-              <div className="space-y-2 flex-1 overflow-y-auto">
+              <div className="space-y-2.5 flex-1 overflow-y-auto">
                 {colTasks.length === 0 ? (
-                  <p className="text-xs text-zinc-600 text-center py-10">No tasks</p>
+                  <div className="h-32 flex items-center justify-center border border-dashed border-zinc-800/60 rounded-lg">
+                    <p className="text-xs text-zinc-600">Arraste um card aqui</p>
+                  </div>
                 ) : (
                   colTasks.map((t) => (
                     <div
                       key={t.id}
-                      className="group rounded-lg border border-zinc-800 bg-zinc-900/60 p-3 hover:border-zinc-700 transition-colors relative space-y-2"
+                      draggable
+                      onDragStart={() => setDraggedTaskId(t.id)}
+                      className="group rounded-lg border border-zinc-800 bg-zinc-900/80 p-3.5 hover:border-zinc-700 transition-all cursor-grab active:cursor-grabbing relative space-y-3"
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <p className="text-xs font-medium text-zinc-200 leading-snug">{t.title}</p>
+                        <div className="flex items-start gap-1.5 min-w-0 flex-1">
+                          <GripVertical className="w-3.5 h-3.5 text-zinc-600 mt-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          <p className="text-xs font-medium text-zinc-200 leading-snug">
+                            {t.title}
+                          </p>
+                        </div>
                         <button
                           onClick={() => handleDeleteTask(t.id)}
                           className="opacity-0 group-hover:opacity-100 p-1 text-zinc-500 hover:text-red-400 transition-all rounded shrink-0"
@@ -152,11 +206,41 @@ export default function TasksPage() {
                         </button>
                       </div>
 
-                      <div className="flex items-center justify-between text-[10.5px] text-zinc-500 pt-1 border-t border-zinc-800/40">
-                        <span>{t.assignee || "Hermes"}</span>
-                        <span className="num px-1.5 py-0.5 rounded bg-zinc-800/80 text-zinc-400">
-                          P{t.priority}
-                        </span>
+                      <div className="flex items-center justify-between text-[11px] text-zinc-400 pt-2 border-t border-zinc-800/50">
+                        <div className="flex items-center gap-2">
+                          <span className="text-zinc-500 text-[10.5px]">
+                            {t.assignee || "Hermes"}
+                          </span>
+                          <span className="num text-[10px] px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-400">
+                            P{t.priority}
+                          </span>
+                        </div>
+
+                        {/* Botões de avançar/voltar coluna */}
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {colIdx > 0 && (
+                            <button
+                              onClick={() =>
+                                handleUpdateStatus(t.id, COLUMNS[colIdx - 1].id)
+                              }
+                              className="p-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors"
+                              title="Mover para esquerda"
+                            >
+                              <ChevronLeft className="w-3 h-3" />
+                            </button>
+                          )}
+                          {colIdx < COLUMNS.length - 1 && (
+                            <button
+                              onClick={() =>
+                                handleUpdateStatus(t.id, COLUMNS[colIdx + 1].id)
+                              }
+                              className="p-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors"
+                              title="Mover para direita"
+                            >
+                              <ChevronRight className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))
@@ -173,14 +257,19 @@ export default function TasksPage() {
           <div className="bg-zinc-900 border border-zinc-800 rounded-xl max-w-md w-full p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-semibold text-zinc-100">Nova Tarefa</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-zinc-500 hover:text-zinc-300">
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="text-zinc-500 hover:text-zinc-300"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleAddTask} className="space-y-4">
               <div>
-                <label className="block text-xs text-zinc-400 mb-1 font-medium">Título da Tarefa</label>
+                <label className="block text-xs text-zinc-400 mb-1 font-medium">
+                  Título da Tarefa
+                </label>
                 <input
                   type="text"
                   required
@@ -193,7 +282,9 @@ export default function TasksPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs text-zinc-400 mb-1 font-medium">Status Inicial</label>
+                  <label className="block text-xs text-zinc-400 mb-1 font-medium">
+                    Status Inicial
+                  </label>
                   <select
                     value={status}
                     onChange={(e) => setStatus(e.target.value)}
@@ -207,7 +298,9 @@ export default function TasksPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs text-zinc-400 mb-1 font-medium">Prioridade</label>
+                  <label className="block text-xs text-zinc-400 mb-1 font-medium">
+                    Prioridade
+                  </label>
                   <select
                     value={priority}
                     onChange={(e) => setPriority(e.target.value)}
@@ -221,7 +314,9 @@ export default function TasksPage() {
               </div>
 
               <div>
-                <label className="block text-xs text-zinc-400 mb-1 font-medium">Responsável</label>
+                <label className="block text-xs text-zinc-400 mb-1 font-medium">
+                  Responsável
+                </label>
                 <input
                   type="text"
                   value={assignee}
