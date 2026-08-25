@@ -1,10 +1,9 @@
 "use client";
 
 /* ───────────────────────────────────────────────────────────
-   Hermy HQ · Approval inbox
-   "Everything that needs your tap" queue.
-   Self-contained: polls /api/hermes/requests, one-tap
-   approve / reject / edit via PATCH. Calm Luxury.
+   Hermy HQ · Caixa de Aprovações
+   Fila de pendências que aguardam sua confirmação.
+   Aprovações / rejeições / edições em um clique via PATCH.
    ─────────────────────────────────────────────────────────── */
 
 import { useCallback, useEffect, useState } from "react";
@@ -36,13 +35,13 @@ function timeAgo(d: string | null): string {
   const diff = Date.now() - new Date(d).getTime();
   if (Number.isNaN(diff)) return "—";
   const s = Math.floor(diff / 1000);
-  if (s < 45) return "just now";
+  if (s < 45) return "agora há pouco";
   const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ago`;
+  if (m < 60) return `${m}m atrás`;
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
+  if (h < 24) return `${h}h atrás`;
   const days = Math.floor(h / 24);
-  return `${days}d ago`;
+  return `${days}d atrás`;
 }
 
 async function getJSON<T>(url: string): Promise<T | null> {
@@ -78,7 +77,6 @@ function InboxCard({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      // optimistic: card fades, parent refetches
       onAction();
     } catch {
       setBusy(false);
@@ -93,7 +91,7 @@ function InboxCard({
       <div className="flex items-start justify-between gap-3 mb-2.5">
         <div className="flex items-center gap-2 flex-wrap">
           <Pill tone="neutral">{req.kind}</Pill>
-          {req.sideEffecting && <Pill tone="warn">side-effecting</Pill>}
+          {req.sideEffecting && <Pill tone="warn">Ação Externa</Pill>}
         </div>
         <span className="num text-[10.5px] text-[var(--text-3)] shrink-0 mt-1">
           {timeAgo(req.createdAt)}
@@ -148,7 +146,7 @@ function InboxCard({
               }}
             >
               <Check className="w-3.5 h-3.5" />
-              Save
+              Salvar
             </button>
             <button
               type="button"
@@ -159,7 +157,7 @@ function InboxCard({
               }}
               className="btn-ghost inline-flex items-center gap-1.5 px-3.5 py-1.5 text-[12px] font-medium"
             >
-              Cancel
+              Cancelar
             </button>
           </>
         ) : (
@@ -175,7 +173,7 @@ function InboxCard({
               }}
             >
               <Check className="w-3.5 h-3.5" />
-              Approve
+              Aprovar
             </button>
             <button
               type="button"
@@ -184,7 +182,7 @@ function InboxCard({
               style={{ border: "1px solid var(--line)" }}
             >
               <X className="w-3.5 h-3.5" />
-              Reject
+              Rejeitar
             </button>
             <button
               type="button"
@@ -193,7 +191,7 @@ function InboxCard({
               style={{ border: "1px solid var(--line)" }}
             >
               <Pencil className="w-3.5 h-3.5" />
-              Edit
+              Editar
             </button>
           </>
         )}
@@ -225,7 +223,6 @@ export function ApprovalInbox({ compact = false }: { compact?: boolean }) {
     return () => clearInterval(iv);
   }, [load]);
 
-  // optimistic removal, then refetch to reconcile
   const handleAction = useCallback(
     (id: string) => {
       setRequests((prev) => prev.filter((r) => r.id !== id));
@@ -242,9 +239,9 @@ export function ApprovalInbox({ compact = false }: { compact?: boolean }) {
     <div>
       {/* Header */}
       <div className="flex items-center justify-between gap-3 mb-4">
-        <Eyebrow>Approval inbox</Eyebrow>
+        <Eyebrow>Caixa de Aprovações</Eyebrow>
         <Pill tone={count > 0 ? "accent" : "neutral"}>
-          {count} pending
+          {count} {count === 1 ? "pendente" : "pendentes"}
         </Pill>
       </div>
 
@@ -252,16 +249,15 @@ export function ApprovalInbox({ compact = false }: { compact?: boolean }) {
         <Panel className="p-2">
           <EmptyState
             icon={<Check className="w-6 h-6" style={{ color: "var(--up)" }} />}
-            title="Nothing needs you right now — you're clear."
-            hint="Side-effecting work waiting on your call will land here."
+            title="Tudo limpo por aqui — nenhuma pendência."
+            hint="Ações de agentes que aguardam sua confirmação aparecerão aqui."
           />
         </Panel>
       ) : requests.length === 0 ? (
-        // pre-load: keep it calm, mirror empty framing
         <Panel className="p-2">
           <EmptyState
             icon={<Inbox className="w-6 h-6" />}
-            title="Checking the queue…"
+            title="Verificando fila de pendências…"
           />
         </Panel>
       ) : (
@@ -280,7 +276,7 @@ export function ApprovalInbox({ compact = false }: { compact?: boolean }) {
               className="inline-flex items-center gap-1 self-start text-[12.5px] font-medium transition-colors"
               style={{ color: "var(--accent)" }}
             >
-              View all in Hermes →
+              Ver todas as pendências no Hermes →
             </a>
           )}
         </div>
