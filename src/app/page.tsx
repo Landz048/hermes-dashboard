@@ -272,7 +272,7 @@ export default function Dashboard() {
       <div className="relative z-10 w-full mx-auto pb-16">
 
         {/* ── Header ─────────────────────────────────────── */}
-        <div className="hq-rise pt-4 pb-10 flex flex-wrap items-end justify-between gap-6" style={rise(0)}>
+        <div className="hq-rise pt-4 pb-8 flex flex-wrap items-end justify-between gap-6" style={rise(0)}>
           <div>
             <div className="eyebrow mb-2.5">{greeting()}</div>
             <h1 className="text-[40px] font-semibold tracking-[-0.025em] leading-none text-[var(--hq-text)]">
@@ -298,23 +298,23 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* ── Brief + Approval inbox (side-by-side on wide) ─ */}
-        <div className="mt-5 grid grid-cols-1 xl:grid-cols-3 gap-5 items-start">
-          <div className="xl:col-span-2 hq-rise" style={rise(1)}>
-            <HermesBriefing />
-          </div>
-          <div className="xl:col-span-1 hq-rise" style={rise(2)}>
-            <ApprovalInbox compact />
+        {/* ── Métricas Comerciais (Topo) ─────────────────── */}
+        <div className="mb-8">
+          <SectionLabel>Métricas Comerciais</SectionLabel>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div className="hq-rise" style={rise(1)}>
+              <ProposalsCard />
+            </div>
           </div>
         </div>
 
-        {/* ── Métricas Comerciais (Propostas Criadas) ──────── */}
-        <div className="mt-10">
-          <SectionLabel>Métricas Comerciais</SectionLabel>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            <div className="hq-rise" style={rise(3)}>
-              <ProposalsCard />
-            </div>
+        {/* ── Brief + Approval inbox (side-by-side on wide) ─ */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 items-start">
+          <div className="xl:col-span-2 hq-rise" style={rise(2)}>
+            <HermesBriefing />
+          </div>
+          <div className="xl:col-span-1 hq-rise" style={rise(3)}>
+            <ApprovalInbox compact />
           </div>
         </div>
 
