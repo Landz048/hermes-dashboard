@@ -1,205 +1,256 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button, Pill, rise } from "@/components/ui/kit";
+import { Plus, Trash2, CheckCircle2, Clock, PlayCircle, ShieldCheck, X } from "lucide-react";
 
 interface Task {
   id: string;
-  name: string;
+  title: string;
   status: string;
-  priority: string;
-  category: string;
-  dueDate?: string;
+  priority: number;
+  assignee: string | null;
+  result: string | null;
+  board: string;
 }
 
-const columns = [
-  { id: "Not started", label: "To Do" },
-  { id: "Approved", label: "Approved" },
-  { id: "In progress", label: "In Progress" },
-  { id: "Done", label: "Done" },
+const COLUMNS = [
+  { id: "todo", label: "TO DO", icon: Clock },
+  { id: "approved", label: "APPROVED", icon: ShieldCheck },
+  { id: "in_progress", label: "IN PROGRESS", icon: PlayCircle },
+  { id: "done", label: "DONE", icon: CheckCircle2 },
 ];
 
 export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
-  const [newTask, setNewTask] = useState("");
-  const [showAddTask, setShowAddTask] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [title, setTitle] = useState("");
+  const [status, setStatus] = useState("todo");
+  const [priority, setPriority] = useState("1");
+  const [assignee, setAssignee] = useState("Hermes");
+  const [submitting, setSubmitting] = useState(false);
+
+  const fetchTasks = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch("/api/tasks");
+      const data = await res.json();
+      if (data.tasks) setTasks(data.tasks);
+    } catch (err) {
+      console.error("Erro ao carregar tasks:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchTasks();
   }, []);
 
-  async function fetchTasks() {
-    try {
-      const res = await fetch("/api/tasks");
-      const data = await res.json();
-      setTasks(data.tasks || []);
-    } catch (e) {
-      console.error("Failed to fetch tasks", e);
-    } finally {
-      setLoading(false);
-    }
-  }
+  const handleAddTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim()) return;
 
-  async function addTask() {
-    if (!newTask.trim()) return;
     try {
-      await fetch("/api/tasks", {
+      setSubmitting(true);
+      const res = await fetch("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newTask, status: "Not started" }),
+        body: JSON.stringify({
+          title: title.trim(),
+          status,
+          priority: Number(priority),
+          assignee,
+        }),
       });
-      setNewTask("");
-      setShowAddTask(false);
-      fetchTasks();
-    } catch (e) {
-      console.error("Failed to add task", e);
-    }
-  }
 
-  async function updateTaskStatus(taskId: string, newStatus: string) {
+      if (res.ok) {
+        setTitle("");
+        setIsModalOpen(false);
+        fetchTasks();
+      } else {
+        alert("Erro ao criar tarefa");
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeleteTask = async (id: string) => {
+    if (!window.confirm("Deseja realmente excluir esta tarefa?")) return;
     try {
-      await fetch("/api/tasks", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: taskId, status: newStatus }),
-      });
-      fetchTasks();
-    } catch (e) {
-      console.error("Failed to update task", e);
+      const res = await fetch(`/api/tasks?id=${id}`, { method: "DELETE" });
+      if (res.ok) fetchTasks();
+    } catch (err) {
+      console.error(err);
     }
-  }
+  };
 
-  if (loading) {
-    return (
-      <>
-        <div className="relative z-10 w-full mx-auto pt-4">
-          <div className="flex justify-between items-center mb-10">
-            <div>
-              <div className="sk h-3 w-20 mb-3" />
-              <div className="sk h-7 w-28" />
-            </div>
-            <div className="sk h-9 w-28 rounded-full" />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="panel p-4">
-                <div className="sk h-4 w-16 mb-4" />
-                <div className="space-y-2">
-                  {[...Array(i + 1)].map((_, j) => <div key={j} className="sk h-16 rounded-[var(--r-md)]" />)}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </>
-    );
-  }
-
-  return (
-    <>
-      <div className="relative z-10 h-full flex flex-col w-full mx-auto pt-4 pb-16">
-        <div className="hq-rise flex justify-between items-end gap-4 mb-10" style={rise(0)}>
-          <div>
-            <div className="eyebrow mb-2">Synced with Notion</div>
-            <h1 className="text-[32px] font-semibold tracking-[-0.025em] leading-none text-[var(--text)]">Tasks</h1>
-          </div>
-          <Button variant="primary" onClick={() => setShowAddTask(true)}>+ Add Task</Button>
-        </div>
-
-        {showAddTask && (
-          <div className="hq-rise elevated mb-8 p-5">
-            <input
-              type="text"
-              value={newTask}
-              onChange={(e) => setNewTask(e.target.value)}
-              placeholder="What needs to be done?"
-              className="w-full bg-[var(--surface-1)] border border-[var(--line)] text-[var(--text)] placeholder-[var(--text-3)] rounded-[var(--r-md)] px-4 py-3 mb-3 text-[14px] focus:outline-none focus:border-[var(--line-strong)]"
-              onKeyDown={(e) => e.key === "Enter" && addTask()}
-              autoFocus
-            />
-            <div className="flex gap-2">
-              <Button variant="primary" onClick={addTask}>Add Task</Button>
-              <Button variant="ghost" onClick={() => setShowAddTask(false)}>Cancel</Button>
-            </div>
-          </div>
-        )}
-
-        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 overflow-hidden">
-          {columns.map((column, idx) => {
-            const count = tasks.filter((t) => t.status === column.id).length;
-            return (
-              <div key={column.id} className="hq-rise panel flex flex-col overflow-hidden" style={rise(idx + 1)}>
-                <div className="px-4 py-3.5 flex items-center justify-between">
-                  <span className="eyebrow">{column.label}</span>
-                  <span className="num text-[11px] text-[var(--text-3)]">{count}</span>
-                </div>
-                <div className="rule" />
-                <div className="flex-1 p-2.5 space-y-2 overflow-y-auto">
-                  {tasks
-                    .filter((t) => t.status === column.id)
-                    .map((task) => (
-                      <TaskCard
-                        key={task.id}
-                        task={task}
-                        done={column.id === "Done"}
-                        onStatusChange={(status) => updateTaskStatus(task.id, status)}
-                      />
-                    ))}
-                  {count === 0 && (
-                    <p className="text-[var(--text-4)] text-[12.5px] text-center py-8">No tasks</p>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </>
-  );
-}
-
-function TaskCard({
-  task,
-  done,
-  onStatusChange,
-}: {
-  task: Task;
-  done?: boolean;
-  onStatusChange: (status: string) => void;
-}) {
-  const priorityTone: Record<string, "warn" | "neutral"> = {
-    High: "warn",
-    Medium: "neutral",
-    Low: "neutral",
+  const getColumnTasks = (colId: string) => {
+    return tasks.filter((t) => {
+      const s = (t.status || "").toLowerCase().replace("-", "_").trim();
+      if (colId === "todo") return s === "todo" || s === "backlog" || s === "to_do";
+      if (colId === "approved") return s === "approved" || s === "aprovado";
+      if (colId === "in_progress") return s === "in_progress" || s === "doing" || s === "progress";
+      if (colId === "done") return s === "done" || s === "concluido" || s === "complete";
+      return false;
+    });
   };
 
   return (
-    <div className="rounded-[var(--r-md)] border border-[var(--line)] bg-[var(--surface-1)] p-3.5 transition-colors hover:border-[var(--line-strong)] hover:bg-[var(--surface-2)] cursor-pointer group">
-      <p className={`font-medium text-[13px] mb-3 leading-relaxed ${done ? "text-[var(--text-3)] line-through" : "text-[var(--text)]"}`}>
-        {task.name}
-      </p>
-      <div className="flex items-center gap-2 flex-wrap">
-        {task.priority && (
-          <Pill tone={priorityTone[task.priority] || "neutral"}>{task.priority}</Pill>
-        )}
-        {task.category && (
-          <span className="text-[11px] text-[var(--text-3)]">{task.category}</span>
-        )}
-      </div>
-      <div className="mt-3 pt-3 border-t border-[var(--line)] opacity-0 group-hover:opacity-100 transition-opacity">
-        <select
-          className="text-[12px] bg-[var(--surface-1)] text-[var(--text-2)] rounded-[var(--r-sm)] px-3 py-2 w-full border border-[var(--line)] focus:outline-none focus:border-[var(--line-strong)]"
-          value={task.status}
-          onChange={(e) => onStatusChange(e.target.value)}
+    <div className="relative z-10 w-full mx-auto pb-16">
+      <div className="pt-4 pb-8 flex items-center justify-between">
+        <div>
+          <span className="eyebrow text-xs text-zinc-500 uppercase tracking-wider block mb-1">Board de Operações</span>
+          <h1 className="text-4xl font-semibold tracking-tight text-zinc-100">Tasks</h1>
+        </div>
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold rounded-lg transition-colors"
         >
-          {columns.map((col) => (
-            <option key={col.id} value={col.id}>
-              Move to {col.label}
-            </option>
-          ))}
-        </select>
+          <Plus className="w-4 h-4" />
+          Add Task
+        </button>
       </div>
+
+      {/* Grid de Colunas */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        {COLUMNS.map((col) => {
+          const colTasks = getColumnTasks(col.id);
+          const Icon = col.icon;
+          return (
+            <div key={col.id} className="rounded-xl border border-zinc-800/80 bg-zinc-950/50 p-4 flex flex-col min-h-[450px]">
+              <div className="flex items-center justify-between pb-3 border-b border-zinc-800/60 mb-3">
+                <div className="flex items-center gap-2">
+                  <Icon className="w-4 h-4 text-zinc-400" />
+                  <span className="text-xs font-semibold tracking-wider text-zinc-300 uppercase">{col.label}</span>
+                </div>
+                <span className="text-xs num font-medium px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400">
+                  {colTasks.length}
+                </span>
+              </div>
+
+              <div className="space-y-2 flex-1 overflow-y-auto">
+                {colTasks.length === 0 ? (
+                  <p className="text-xs text-zinc-600 text-center py-10">No tasks</p>
+                ) : (
+                  colTasks.map((t) => (
+                    <div
+                      key={t.id}
+                      className="group rounded-lg border border-zinc-800 bg-zinc-900/60 p-3 hover:border-zinc-700 transition-colors relative space-y-2"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-xs font-medium text-zinc-200 leading-snug">{t.title}</p>
+                        <button
+                          onClick={() => handleDeleteTask(t.id)}
+                          className="opacity-0 group-hover:opacity-100 p-1 text-zinc-500 hover:text-red-400 transition-all rounded shrink-0"
+                          title="Excluir"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[10.5px] text-zinc-500 pt-1 border-t border-zinc-800/40">
+                        <span>{t.assignee || "Hermes"}</span>
+                        <span className="num px-1.5 py-0.5 rounded bg-zinc-800/80 text-zinc-400">
+                          P{t.priority}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Modal Adicionar Task */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-semibold text-zinc-100">Nova Tarefa</h3>
+              <button onClick={() => setIsModalOpen(false)} className="text-zinc-500 hover:text-zinc-300">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddTask} className="space-y-4">
+              <div>
+                <label className="block text-xs text-zinc-400 mb-1 font-medium">Título da Tarefa</label>
+                <input
+                  type="text"
+                  required
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Ex: Revisar proposta do cliente"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-zinc-700"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-zinc-400 mb-1 font-medium">Status Inicial</label>
+                  <select
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value)}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-zinc-700"
+                  >
+                    <option value="todo">TO DO</option>
+                    <option value="approved">APPROVED</option>
+                    <option value="in_progress">IN PROGRESS</option>
+                    <option value="done">DONE</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs text-zinc-400 mb-1 font-medium">Prioridade</label>
+                  <select
+                    value={priority}
+                    onChange={(e) => setPriority(e.target.value)}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-zinc-700"
+                  >
+                    <option value="1">1 (Baixa)</option>
+                    <option value="2">2 (Média)</option>
+                    <option value="3">3 (Alta)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs text-zinc-400 mb-1 font-medium">Responsável</label>
+                <input
+                  type="text"
+                  value={assignee}
+                  onChange={(e) => setAssignee(e.target.value)}
+                  placeholder="Nome do responsável"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-zinc-700"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-4 py-2 text-xs text-zinc-400 hover:text-zinc-200 font-medium"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting || !title.trim()}
+                  className="px-4 py-2 bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {submitting ? "Adicionando..." : "Salvar Tarefa"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
