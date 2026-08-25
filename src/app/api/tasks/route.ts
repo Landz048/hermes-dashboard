@@ -1,152 +1,92 @@
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { randomUUID } from "crypto";
 
-// This would connect to Notion API
-// For now, return mock data
-
-const NOTION_API_KEY = process.env.NOTION_API_KEY;
-const DATABASE_ID = "1264208d-f768-4604-b4cb-09f4d6fd41e3"; // Max's Tasks DB
-
-export async function GET() {
+// GET /api/tasks -> Lista tarefas
+export async function GET(req: Request) {
   try {
-    if (!NOTION_API_KEY) {
-      // Retorna lista vazia caso não haja chave da API configurada
-      return NextResponse.json({
-        tasks: [],
-      });
-    }
+    const url = new URL(req.url);
+    const board = url.searchParams.get("board") || "default";
 
-    const res = await fetch(`https://api.notion.com/v1/databases/${DATABASE_ID}/query`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${NOTION_API_KEY}`,
-        "Notion-Version": "2022-06-28",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        filter: {
-          property: "Status",
-          status: {
-            does_not_equal: "Done",
-          },
-        },
-      }),
+    const tasks = await prisma.hermesTask.findMany({
+      where: { board },
+      orderBy: [{ priority: "desc" }, { updatedAt: "desc" }],
     });
-
-    const data = await res.json();
-    
-    const tasks = data.results?.map((page: any) => ({
-      id: page.id,
-      name: page.properties.Name?.title?.[0]?.plain_text || "Untitled",
-      status: page.properties.Status?.status?.name || "Not started",
-      priority: page.properties.Priority?.select?.name || "",
-      category: page.properties.Category?.select?.name || "",
-      dueDate: page.properties["Due Date"]?.date?.start || null,
-    })) || [];
 
     return NextResponse.json({ tasks });
-  } catch (error) {
-    console.error("Tasks API error:", error);
-    return NextResponse.json({ error: "Failed to fetch tasks" }, { status: 500 });
+  } catch (error: any) {
+    console.error("Erro ao listar tarefas:", error);
+    return NextResponse.json({ tasks: [], error: error.message }, { status: 500 });
   }
 }
 
+// POST /api/tasks -> Cria nova tarefa
 export async function POST(req: Request) {
   try {
-    const { name, status } = await req.json();
-    
-    if (!NOTION_API_KEY) {
-      return NextResponse.json({ success: true, message: "Mock - would create task in Notion" });
+    const body = await req.json();
+    const {
+      title,
+      description,
+      status = "todo",
+      priority = 1,
+      assignee = "Hermes",
+      board = "default",
+    } = body;
+
+    if (!title || !title.trim()) {
+      return NextResponse.json(
+        { error: "O título da tarefa é obrigatório." },
+        { status: 400 }
+      );
     }
 
-    const res = await fetch("https://api.notion.com/v1/pages", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${NOTION_API_KEY}`,
-        "Notion-Version": "2022-06-28",
-        "Content-Type": "application/json",
+    const task = await prisma.hermesTask.create({
+      data: {
+        id: randomUUID(),
+        title: title.trim(),
+        description: description || null,
+        status: status.toLowerCase(),
+        priority: Number(priority) || 1,
+        assignee: assignee || null,
+        board: board || "default",
+        updatedAt: new Date(),
+        syncedAt: new Date(),
       },
-      body: JSON.stringify({
-        parent: { database_id: DATABASE_ID },
-        properties: {
-          Name: { title: [{ text: { content: name } }] },
-          Status: { status: { name: status || "Not started" } },
-        },
-      }),
     });
 
-    const data = await res.json();
-    return NextResponse.json({ success: true, task: data });
-  } catch (error) {
-    console.error("Create task error:", error);
-    return NextResponse.json({ error: "Failed to create task" }, { status: 500 });
+    return NextResponse.json({ ok: true, task });
+  } catch (error: any) {
+    console.error("Erro ao criar tarefa:", error);
+    return NextResponse.json(
+      { error: error?.message || "Falha ao criar tarefa no banco" },
+      { status: 500 }
+    );
   }
 }
 
-export async function PATCH(req: Request) {
-  try {
-    const { id, status } = await req.json();
-    
-    if (!NOTION_API_KEY) {
-      return NextResponse.json({ success: true, message: "Mock - would update task in Notion" });
-    }
-
-    const res = await fetch(`https://api.notion.com/v1/pages/${id}`, {
-      method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${NOTION_API_KEY}`,
-        "Notion-Version": "2022-06-28",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        properties: {
-          Status: { status: { name: status } },
-        },
-      }),
-    });
-
-    const data = await res.json();
-    return NextResponse.json({ success: true, task: data });
-  } catch (error) {
-    console.error("Update task error:", error);
-    return NextResponse.json({ error: "Failed to update task" }, { status: 500 });
-  }
-}
-
+// DELETE /api/tasks?id=xxx -> Exclui tarefa
 export async function DELETE(req: Request) {
   try {
-    const { searchParams } = new URL(req.url);
-    let id = searchParams.get("id");
+    const url = new URL(req.url);
+    const id = url.searchParams.get("id");
 
     if (!id) {
-      const body = await req.json().catch(() => ({}));
-      id = body.id;
+      return NextResponse.json(
+        { error: "ID da tarefa é obrigatório" },
+        { status: 400 }
+      );
     }
 
-    if (!id) {
-      return NextResponse.json({ error: "ID da tarefa não fornecido" }, { status: 400 });
-    }
-
-    if (!NOTION_API_KEY) {
-      return NextResponse.json({ success: true, message: "Mock - tarefa arquivada/excluída" });
-    }
-
-    // No Notion, a exclusão de uma página é feita arquivando-a
-    const res = await fetch(`https://api.notion.com/v1/pages/${id}`, {
-      method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${NOTION_API_KEY}`,
-        "Notion-Version": "2022-06-28",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        archived: true,
-      }),
+    await prisma.hermesTask.delete({
+      where: { id },
     });
 
-    const data = await res.json();
-    return NextResponse.json({ success: true, task: data });
-  } catch (error) {
-    console.error("Delete task error:", error);
-    return NextResponse.json({ error: "Failed to delete task" }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  } catch (error: any) {
+    console.error("Erro ao excluir tarefa:", error);
+    return NextResponse.json(
+      { error: error?.message || "Falha ao excluir tarefa" },
+      { status: 500 }
+    );
   }
 }
