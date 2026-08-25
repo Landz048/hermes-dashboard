@@ -43,12 +43,12 @@ export async function POST(req: Request) {
     const task = await prisma.hermesTask.create({
       data: {
         id: randomUUID(),
+        board: board || "default",
         title: title.trim(),
-        description: description || null,
+        assignee: assignee || null,
         status: status.toLowerCase(),
         priority: Number(priority) || 1,
-        assignee: assignee || null,
-        board: board || "default",
+        result: description || null,
         updatedAt: new Date(),
         syncedAt: new Date(),
       },
