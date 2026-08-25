@@ -5,8 +5,6 @@ import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import {
   Home,
-  Twitter,
-  Play,
   Bot,
   Lightbulb,
   Flower2,
@@ -22,59 +20,57 @@ import {
 
 const navGroups = [
   {
-    name: "Overview",
+    name: "Visão Geral",
     items: [
-      { href: "/", label: "Dashboard", icon: Home },
+      { href: "/", label: "Painel Geral", icon: Home },
       { href: "/hermes", label: "Hermes", icon: Cpu },
-      { href: "/tasks", label: "Tasks", icon: ClipboardList },
+      { href: "/tasks", label: "Tarefas", icon: ClipboardList },
     ],
   },
   {
-    name: "Content",
+    name: "Operação",
     items: [
-      { href: "/x", label: "X", icon: Twitter },
-      { href: "/content-os", label: "Pipeline", icon: Workflow },
-      { href: "/articles", label: "Articles", icon: FileText },
-      { href: "/youtube", label: "YouTube", icon: Play },
+      { href: "/content-os", label: "Pipeline de Projetos", icon: Workflow },
+      { href: "/articles", label: "Artigos & Conteúdos", icon: FileText },
     ],
   },
   {
-    name: "Data",
+    name: "Métricas",
     items: [
-      { href: "/client-pulse", label: "Client Pulse", icon: HeartPulse },
+      { href: "/client-pulse", label: "Status de Clientes", icon: HeartPulse },
     ],
   },
   {
-    name: "System",
+    name: "Sistema",
     items: [
-      { href: "/agents", label: "Agents", icon: Bot },
-      { href: "/memory-wiki", label: "Memory Wiki", icon: BookOpen },
-      { href: "/ideas", label: "Ideas", icon: Lightbulb },
-      { href: "/garden", label: "Garden", icon: Flower2 },
+      { href: "/agents", label: "Agentes", icon: Bot },
+      { href: "/memory-wiki", label: "Base de Conhecimento", icon: BookOpen },
+      { href: "/ideas", label: "Ideias", icon: Lightbulb },
+      { href: "/garden", label: "Automações", icon: Flower2 },
     ],
   },
 ];
 
-// Mobile tab bar - only show the 5 most important
+// Barra móvel inferior (5 principais abas)
 const mobileTabsRaw = [
-  { href: "/", label: "Dashboard", icon: Home },
-  { href: "/x", label: "X", icon: Twitter },
-  { href: "/youtube", label: "YouTube", icon: Play },
-  { href: "/ideas", label: "Ideas", icon: Lightbulb },
-  { href: "/agents", label: "Agents", icon: Bot },
+  { href: "/", label: "Painel", icon: Home },
+  { href: "/content-os", label: "Pipeline", icon: Workflow },
+  { href: "/tasks", label: "Tarefas", icon: ClipboardList },
+  { href: "/memory-wiki", label: "Base", icon: BookOpen },
+  { href: "/agents", label: "Agentes", icon: Bot },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
 
-  // Close sidebar on route change (mobile)
+  // Fecha sidebar ao mudar de rota no mobile
   useEffect(() => {
     const frame = requestAnimationFrame(() => setIsOpen(false));
     return () => cancelAnimationFrame(frame);
   }, [pathname]);
 
-  // Close sidebar when resizing to desktop
+  // Fecha sidebar ao redimensionar tela para desktop
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth >= 768) setIsOpen(false);
@@ -94,19 +90,19 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Mobile header */}
+      {/* Header Mobile */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-[var(--bg)]/90 backdrop-blur-xl border-b border-[var(--line)] px-4 py-3 flex items-center justify-between">
         <Logo />
         <button
           onClick={() => setIsOpen(!isOpen)}
           className="p-2 text-[var(--text-2)] hover:text-[var(--text)] transition-colors rounded-lg hover:bg-[var(--surface-1)]"
-          aria-label="Toggle menu"
+          aria-label="Alternar menu"
         >
           {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
       </div>
 
-      {/* Mobile bottom tab bar */}
+      {/* Barra de abas inferior Mobile */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[var(--bg)]/90 backdrop-blur-xl border-t border-[var(--line)] px-2 py-2 safe-area-pb">
         <nav className="flex justify-around">
           {mobileTabsRaw.map((item) => {
@@ -130,7 +126,7 @@ export function Sidebar() {
         </nav>
       </div>
 
-      {/* Mobile overlay */}
+      {/* Overlay Mobile */}
       {isOpen && (
         <div
           className="md:hidden fixed inset-0 bg-black/60 z-40"
@@ -138,7 +134,7 @@ export function Sidebar() {
         />
       )}
 
-      {/* Desktop Sidebar */}
+      {/* Sidebar Desktop */}
       <aside
         className={`
           fixed md:relative z-50 md:z-10
@@ -155,10 +151,10 @@ export function Sidebar() {
           <Logo />
         </div>
 
-        {/* Spacer for mobile header */}
+        {/* Espaçador para o header mobile */}
         <div className="h-16 md:hidden" />
 
-        {/* Nav */}
+        {/* Links de Navegação */}
         <nav className="flex-1 px-3 overflow-y-auto">
           <div className="space-y-5">
             {navGroups.map((group) => (
@@ -217,14 +213,14 @@ export function Sidebar() {
           </div>
         </nav>
 
-        {/* Footer */}
+        {/* Rodapé de Status */}
         <div className="px-4 py-4 border-t border-[var(--line)]">
           <div className="flex items-center gap-2 text-[var(--text-3)] text-[11.5px]">
             <span className="relative flex w-1.5 h-1.5">
               <span className="absolute inline-flex h-full w-full rounded-full bg-[var(--up)] opacity-60 animate-ping" />
               <span className="relative inline-flex w-1.5 h-1.5 rounded-full bg-[var(--up)]" />
             </span>
-            <span>All systems online</span>
+            <span>Todos os sistemas online</span>
           </div>
         </div>
       </aside>
