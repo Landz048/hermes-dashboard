@@ -33,7 +33,6 @@ export async function POST(req: Request) {
     const titleText = `Executar Cron: ${name || command}`.slice(0, 200);
     const isBriefing = command.includes("briefing.generate");
 
-    // Cria requisição compatível estritamente com os campos do AgentRequest
     const request = await prisma.agentRequest.create({
       data: {
         id: randomUUID(),
@@ -41,7 +40,6 @@ export async function POST(req: Request) {
         prompt: isBriefing ? "briefing.generate" : `cron:${command}`,
         kind: isBriefing ? "briefing.generate" : "cron.trigger",
         status: "queued",
-        priority: 3,
       },
     });
 
