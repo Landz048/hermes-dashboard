@@ -4,19 +4,17 @@ export async function GET() {
   const token = process.env.MONDAY_API_TOKEN;
 
   if (!token) {
-    return NextResponse.json(
-      { error: 'MONDAY_API_TOKEN não configurado no ambiente' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Token não configurado' }, { status: 500 });
   }
 
-  // GraphQL query para buscar os quadros e a contagem de itens de cada um
   const query = `
     query {
-      boards {
+      boards (limit: 50) {
         id
         name
-        items_count
+        items_page (limit: 1) {
+          cursor
+        }
       }
     }
   `;
@@ -30,32 +28,12 @@ export async function GET() {
         'API-Version': '2024-04'
       },
       body: JSON.stringify({ query }),
-      next: { revalidate: 300 } // Revalida o cache a cada 5 minutos
+      cache: 'no-store'
     });
 
     const data = await res.json();
-    const boards = data?.data?.boards || [];
-
-    // Função auxiliar para encontrar a contagem pelo nome aproximado do quadro
-    const getCount = (nameMatch: string) => {
-      const board = boards.find((b: any) =>
-        b.name.toLowerCase().includes(nameMatch.toLowerCase())
-      );
-      return board?.items_count ?? 0;
-    };
-
-    const metrics = {
-      projetosJornada: getCount('Jornada de Acompanhamento'),
-      contratos: getCount('Contratos'),
-      propostas: getCount('Propostas'),
-      standBy: getCount('Stand By'),
-    };
-
-    return NextResponse.json(metrics);
-  } catch (error) {
-    return NextResponse.json(
-      { error: 'Falha ao consultar a API do Monday' },
-      { status: 500 }
-    );
+    return NextResponse.json(data);
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
