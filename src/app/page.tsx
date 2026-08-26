@@ -5,6 +5,7 @@ import { ChevronRight, Trash2, Lightbulb } from "lucide-react";
 import { HermesBriefing } from "@/components/hermes-briefing";
 import { ApprovalInbox } from "@/components/approval-inbox";
 import { ProposalsCard } from "@/components/proposal-card";
+import { MondayCards } from "@/components/monday-cards";
 
 // ── Types ─────────────────────────────────────────────────
 interface BuildIdea { title: string; description: string; effort: string }
@@ -301,19 +302,22 @@ export default function Dashboard() {
         {/* ── Métricas Comerciais (Topo) ─────────────────── */}
         <div className="mb-8">
           <SectionLabel>Métricas Comerciais</SectionLabel>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            <div className="hq-rise" style={rise(1)}>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+            <div className="hq-rise lg:col-span-1" style={rise(1)}>
               <ProposalsCard />
+            </div>
+            <div className="hq-rise lg:col-span-2" style={rise(2)}>
+              <MondayCards />
             </div>
           </div>
         </div>
 
         {/* ── Brief + Approval inbox (side-by-side on wide) ─ */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 items-start">
-          <div className="xl:col-span-2 hq-rise" style={rise(2)}>
+          <div className="xl:col-span-2 hq-rise" style={rise(3)}>
             <HermesBriefing />
           </div>
-          <div className="xl:col-span-1 hq-rise" style={rise(3)}>
+          <div className="xl:col-span-1 hq-rise" style={rise(4)}>
             <ApprovalInbox compact />
           </div>
         </div>
@@ -322,10 +326,10 @@ export default function Dashboard() {
         <div className="mt-10">
           <SectionLabel>Operação & Execução</SectionLabel>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            <div className="hq-rise" style={rise(4)}>
+            <div className="hq-rise" style={rise(5)}>
               <HermesKanbanPanel kanban={data.hermesKanban} />
             </div>
-            <div className="hq-rise" style={rise(5)}>
+            <div className="hq-rise" style={rise(6)}>
               <IdeasPanel buildIdeas={data.topBuildIdeas} />
             </div>
           </div>
