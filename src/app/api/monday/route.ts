@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
 
+// Força o Next.js a não cachear a rota, trazendo os dados sempre em tempo real
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 const BOARD_IDS = {
   jornada: '18417081179',
   contratos: '18417081210',
@@ -75,7 +79,6 @@ export async function GET() {
         'API-Version': '2024-04',
       },
       body: JSON.stringify({ query }),
-      next: { revalidate: 60 },
     });
 
     const data = await res.json();
@@ -87,22 +90,15 @@ export async function GET() {
 
     const getBoard = (id: string) => boards.find((b: any) => b.id === id);
 
-    // Métricas principais
-    const countTotal = (id: string) => {
-      const b = getBoard(id);
-      const items = b?.items_page?.items || [];
-      const subitemsCount = items.reduce((acc: number, it: any) => acc + (it.subitems?.length || 0), 0);
-      return items.length + subitemsCount;
-    };
-
+    // 1. Métricas principais dos Cards do Topo (APENAS itens principais = 10, 42, 18, 9)
     const metrics = {
-      projetosJornada: countTotal(BOARD_IDS.jornada),
-      contratos: countTotal(BOARD_IDS.contratos),
-      propostas: countTotal(BOARD_IDS.propostas),
-      standBy: countTotal(BOARD_IDS.standBy),
+      projetosJornada: getBoard(BOARD_IDS.jornada)?.items_page?.items?.length ?? 0,
+      contratos: getBoard(BOARD_IDS.contratos)?.items_page?.items?.length ?? 0,
+      propostas: getBoard(BOARD_IDS.propostas)?.items_page?.items?.length ?? 0,
+      standBy: getBoard(BOARD_IDS.standBy)?.items_page?.items?.length ?? 0,
     };
 
-    // Pipeline Comercial & Carga
+    // 2. Comercial por Fase & Carga por Responsável
     const comercialBoard = getBoard(BOARD_IDS.comercial);
     const comercialItems = comercialBoard?.items_page?.items || [];
     const comercialMap: Record<string, number> = {};
@@ -131,7 +127,7 @@ export async function GET() {
       value: countsMap[name] || 0,
     }));
 
-    // Projetos por Fase — Jornada
+    // 3. Projetos por Fase — Jornada
     const jornadaBoard = getBoard(BOARD_IDS.jornada);
     const jornadaItems = jornadaBoard?.items_page?.items || [];
     const jornadaMap: Record<string, number> = {};
@@ -141,7 +137,7 @@ export async function GET() {
     });
     const projetosJornadaFases = Object.entries(jornadaMap).map(([name, value]) => ({ name, value }));
 
-    // Contratos por Status
+    // 4. Contratos por Status
     const contratosBoard = getBoard(BOARD_IDS.contratos);
     const contratosItems = contratosBoard?.items_page?.items || [];
     const contratosMap: Record<string, number> = {};
@@ -151,7 +147,7 @@ export async function GET() {
     });
     const contratosStatus = Object.entries(contratosMap).map(([name, value]) => ({ name, value }));
 
-    // Propostas — Progresso
+    // 5. Propostas — Progresso
     const propostasBoard = getBoard(BOARD_IDS.propostas);
     const propostasItems = propostasBoard?.items_page?.items || [];
     const propostasMap: Record<string, number> = {};
@@ -161,7 +157,7 @@ export async function GET() {
     });
     const propostasProgresso = Object.entries(propostasMap).map(([name, value]) => ({ name, value }));
 
-    // Tarefas em Aberto na ordem exata do widget Monday
+    // 6. Lista de Tarefas em Aberto (Inclui Itens + Subitens para manter os totais da lista do Monday)
     const targetBoards = [
       { key: 'standBy', name: 'Stand By' },
       { key: 'comercial', name: 'Comercial' },
