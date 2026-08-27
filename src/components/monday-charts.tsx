@@ -106,7 +106,7 @@ export default function MondayCharts() {
     };
 
     fetchData();
-    const interval = setInterval(fetchData, 60_000); // ⏱️ Atualiza automaticamente a cada 60s
+    const interval = setInterval(fetchData, 60_000); // ⏱️ Atualiza a cada 60s
     return () => clearInterval(interval);
   }, []);
 
@@ -289,12 +289,14 @@ export default function MondayCharts() {
           <div className="py-6 text-center text-[12px] text-[#a1a1aa]">Carregando...</div>
         ) : (
           <div className="space-y-4">
-            {/* Barra Segmentada de Progresso com Porcentagens em Todas as Fatias */}
-            <div className="h-7 w-full rounded-lg bg-white/[0.04] overflow-hidden flex border border-white/5">
+            {/* Barra Segmentada de Progresso */}
+            <div className="h-8 w-full rounded-lg bg-white/[0.04] overflow-hidden flex border border-white/5">
               {data.propostasProgresso.map((item, idx) => {
                 const pct = totalPropostas > 0 ? (item.value / totalPropostas) * 100 : 0;
                 if (pct === 0) return null;
                 const barColor = PROPOSTAS_COLORS[item.name] || PALETTE[idx % PALETTE.length];
+                const isLightBackground = item.name === "Sem status";
+                
                 return (
                   <div
                     key={idx}
@@ -303,10 +305,16 @@ export default function MondayCharts() {
                       width: `${pct}%`,
                       background: barColor,
                     }}
-                    className="h-full transition-all hover:opacity-90 cursor-pointer flex items-center justify-center relative min-w-0"
+                    className="h-full transition-all hover:opacity-90 cursor-pointer flex items-center justify-center shrink-0 overflow-visible relative"
                   >
-                    <span className="text-[10px] sm:text-[11px] font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] truncate px-0.5 select-none">
-                      {pct >= 5 ? `${pct.toFixed(1)}%` : `${pct.toFixed(0)}%`}
+                    <span
+                      style={{
+                        color: isLightBackground ? "#18181b" : "#ffffff",
+                        textShadow: isLightBackground ? "none" : "0 1px 2px rgba(0,0,0,0.8)",
+                      }}
+                      className="text-[10px] sm:text-[11px] font-bold whitespace-nowrap px-0.5 select-none"
+                    >
+                      {`${pct.toFixed(1)}%`}
                     </span>
                   </div>
                 );
