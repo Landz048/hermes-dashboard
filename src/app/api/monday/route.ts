@@ -8,15 +8,11 @@ const BOARD_IDS = {
   comercial: '18417081172',
 };
 
-// Equipe Comercial oficial do widget do Monday
-const TEAM_MEMBERS = [
-  'John',
-  'Felipe',
-  'Natália',
-  'André',
-  'Clara',
-  'Diogo',
-];
+const TEAM_ORDER = ['John', 'Felipe', 'Natália', 'André', 'Clara', 'Diogo'];
+
+function normalizeStr(str: string) {
+  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
 
 export async function GET() {
   const token = process.env.MONDAY_API_TOKEN;
@@ -75,7 +71,7 @@ export async function GET() {
 
     const getBoard = (id: string) => boards.find((b: any) => b.id === id);
 
-    // 1. Métricas principais (Cards)
+    // 1. Cards
     const metrics = {
       projetosJornada: getBoard(BOARD_IDS.jornada)?.items_page?.items?.length ?? 0,
       contratos: getBoard(BOARD_IDS.contratos)?.items_page?.items?.length ?? 0,
@@ -83,33 +79,37 @@ export async function GET() {
       standBy: getBoard(BOARD_IDS.standBy)?.items_page?.items?.length ?? 0,
     };
 
-    // 2. Pipeline Comercial por Fase & Carga por Responsável
+    // 2. Comercial por Fase & Carga por Responsável
     const comercialItems = getBoard(BOARD_IDS.comercial)?.items_page?.items || [];
     const comercialMap: Record<string, number> = {};
-    
-    // Inicia todos os membros da equipe com 0
     const countsMap: Record<string, number> = {};
-    TEAM_MEMBERS.forEach((m) => { countsMap[m] = 0; });
+
+    TEAM_ORDER.forEach((m) => { countsMap[m] = 0; });
 
     comercialItems.forEach((item: any) => {
       const grupo = item.group?.title?.trim() || 'Outros';
       comercialMap[grupo] = (comercialMap[grupo] || 0) + 1;
 
       item.column_values?.forEach((col: any) => {
-        if (col.text && (col.type === 'people' || col.type === 'multiple-person' || col.id?.includes('person') || col.id?.includes('responsavel'))) {
-          TEAM_MEMBERS.forEach((m) => {
-            if (col.text.toLowerCase().includes(m.toLowerCase())) {
-              countsMap[m] = (countsMap[m] || 0) + 1;
+        // Checagem por texto direto
+        if (col.text) {
+          const normText = normalizeStr(col.text);
+          TEAM_ORDER.forEach((member) => {
+            if (normText.includes(normalizeStr(member))) {
+              countsMap[member] = (countsMap[member] || 0) + 1;
             }
           });
-        } else if (col.value && (col.type === 'people' || col.type === 'multiple-person')) {
+        }
+        // Checagem por ID de usuário dentro do JSON
+        if (col.value && (col.type === 'people' || col.type === 'multiple-person')) {
           try {
             const parsed = JSON.parse(col.value);
             parsed?.personsAndTeams?.forEach((p: any) => {
               const uName = usersMap.get(String(p.id)) || '';
-              TEAM_MEMBERS.forEach((m) => {
-                if (uName.toLowerCase().includes(m.toLowerCase())) {
-                  countsMap[m] = (countsMap[m] || 0) + 1;
+              const normName = normalizeStr(uName);
+              TEAM_ORDER.forEach((member) => {
+                if (normName.includes(normalizeStr(member))) {
+                  countsMap[member] = (countsMap[member] || 0) + 1;
                 }
               });
             });
@@ -119,9 +119,7 @@ export async function GET() {
     });
 
     const pipelineComercial = Object.entries(comercialMap).map(([name, value]) => ({ name, value }));
-
-    // Retorna todos os membros na ordem exata do widget
-    const cargaResponsavel = TEAM_MEMBERS.map((name) => ({
+    const cargaResponsavel = TEAM_ORDER.map((name) => ({
       name,
       value: countsMap[name] || 0,
     }));
