@@ -34,7 +34,6 @@ export async function GET() {
           items {
             id
             name
-            state
             group {
               id
               title
@@ -45,6 +44,21 @@ export async function GET() {
               text
               type
               value
+            }
+            subitems {
+              id
+              name
+              group {
+                id
+                title
+                color
+              }
+              column_values {
+                id
+                text
+                type
+                value
+              }
             }
           }
         }
@@ -73,15 +87,22 @@ export async function GET() {
 
     const getBoard = (id: string) => boards.find((b: any) => b.id === id);
 
-    // 1. Cards
-    const metrics = {
-      projetosJornada: getBoard(BOARD_IDS.jornada)?.items_page?.items?.length ?? 0,
-      contratos: getBoard(BOARD_IDS.contratos)?.items_page?.items?.length ?? 0,
-      propostas: getBoard(BOARD_IDS.propostas)?.items_page?.items?.length ?? 0,
-      standBy: getBoard(BOARD_IDS.standBy)?.items_page?.items?.length ?? 0,
+    // Métricas principais
+    const countTotal = (id: string) => {
+      const b = getBoard(id);
+      const items = b?.items_page?.items || [];
+      const subitemsCount = items.reduce((acc: number, it: any) => acc + (it.subitems?.length || 0), 0);
+      return items.length + subitemsCount;
     };
 
-    // 2. Comercial por Fase & Carga por Responsável
+    const metrics = {
+      projetosJornada: countTotal(BOARD_IDS.jornada),
+      contratos: countTotal(BOARD_IDS.contratos),
+      propostas: countTotal(BOARD_IDS.propostas),
+      standBy: countTotal(BOARD_IDS.standBy),
+    };
+
+    // Pipeline Comercial & Carga
     const comercialBoard = getBoard(BOARD_IDS.comercial);
     const comercialItems = comercialBoard?.items_page?.items || [];
     const comercialMap: Record<string, number> = {};
@@ -101,20 +122,6 @@ export async function GET() {
             }
           });
         }
-        if (col.value && (col.type === 'people' || col.type === 'multiple-person')) {
-          try {
-            const parsed = JSON.parse(col.value);
-            parsed?.personsAndTeams?.forEach((p: any) => {
-              const uName = usersMap.get(String(p.id)) || '';
-              const normName = normalizeStr(uName);
-              TEAM_ORDER.forEach((member) => {
-                if (normName.includes(normalizeStr(member))) {
-                  countsMap[member] = (countsMap[member] || 0) + 1;
-                }
-              });
-            });
-          } catch (_) {}
-        }
       });
     });
 
@@ -124,7 +131,7 @@ export async function GET() {
       value: countsMap[name] || 0,
     }));
 
-    // 3. Projetos por Fase — Jornada
+    // Projetos por Fase — Jornada
     const jornadaBoard = getBoard(BOARD_IDS.jornada);
     const jornadaItems = jornadaBoard?.items_page?.items || [];
     const jornadaMap: Record<string, number> = {};
@@ -134,7 +141,7 @@ export async function GET() {
     });
     const projetosJornadaFases = Object.entries(jornadaMap).map(([name, value]) => ({ name, value }));
 
-    // 4. Contratos por Status
+    // Contratos por Status
     const contratosBoard = getBoard(BOARD_IDS.contratos);
     const contratosItems = contratosBoard?.items_page?.items || [];
     const contratosMap: Record<string, number> = {};
@@ -144,7 +151,7 @@ export async function GET() {
     });
     const contratosStatus = Object.entries(contratosMap).map(([name, value]) => ({ name, value }));
 
-    // 5. Propostas — Progresso
+    // Propostas — Progresso
     const propostasBoard = getBoard(BOARD_IDS.propostas);
     const propostasItems = propostasBoard?.items_page?.items || [];
     const propostasMap: Record<string, number> = {};
@@ -154,7 +161,15 @@ export async function GET() {
     });
     const propostasProgresso = Object.entries(propostasMap).map(([name, value]) => ({ name, value }));
 
-    // 6. Tarefas em Aberto (Coleta itens ativos de todos os quadros conectados)
+    // Tarefas em Aberto na ordem exata do widget Monday
+    const targetBoards = [
+      { key: 'standBy', name: 'Stand By' },
+      { key: 'comercial', name: 'Comercial' },
+      { key: 'jornada', name: 'Jornada de Acompanhamento' },
+      { key: 'contratos', name: 'Contratos' },
+      { key: 'propostas', name: 'Propostas' },
+    ];
+
     const tarefasEmAberto: Array<{
       id: string;
       name: string;
@@ -163,15 +178,27 @@ export async function GET() {
       board: string;
     }> = [];
 
-    boards.forEach((b: any) => {
-      const boardName = b.name;
+    targetBoards.forEach(({ key, name }) => {
+      const b = getBoard((BOARD_IDS as any)[key]);
+      if (!b) return;
+
       (b.items_page?.items || []).forEach((it: any) => {
         tarefasEmAberto.push({
           id: it.id,
           name: it.name,
-          group: it.group?.title || 'Geral',
+          group: it.group?.title || 'Principal',
           groupColor: it.group?.color || '#00ca72',
-          board: boardName,
+          board: name,
+        });
+
+        (it.subitems || []).forEach((sub: any) => {
+          tarefasEmAberto.push({
+            id: sub.id,
+            name: `↳ ${sub.name}`,
+            group: sub.group?.title || 'Subelemento',
+            groupColor: sub.group?.color || '#579bfc',
+            board: name,
+          });
         });
       });
     });

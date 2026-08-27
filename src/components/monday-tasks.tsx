@@ -11,10 +11,24 @@ interface MondayTaskItem {
   board: string;
 }
 
+const BOARD_ORDER = [
+  "Stand By",
+  "Comercial",
+  "Jornada de Acompanhamento",
+  "Contratos",
+  "Propostas",
+];
+
 export default function MondayTasksTable() {
   const [tasks, setTasks] = useState<MondayTaskItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({
+    "Stand By": true,
+    "Comercial": true,
+    "Jornada de Acompanhamento": true,
+    "Contratos": true,
+    "Propostas": true,
+  });
 
   useEffect(() => {
     fetch("/api/monday")
@@ -27,13 +41,16 @@ export default function MondayTasksTable() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Agrupa tarefas pelo nome do Quadro ou Grupo
-  const groupedTasks = tasks.reduce((acc, t) => {
-    const key = t.board || "Outros";
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(t);
-    return acc;
-  }, {} as Record<string, MondayTaskItem[]>);
+  const groupedTasks: Record<string, MondayTaskItem[]> = {};
+  BOARD_ORDER.forEach((b) => { groupedTasks[b] = []; });
+
+  tasks.forEach((t) => {
+    if (groupedTasks[t.board]) {
+      groupedTasks[t.board].push(t);
+    } else {
+      groupedTasks[t.board] = [t];
+    }
+  });
 
   const toggleGroup = (groupName: string) => {
     setCollapsedGroups((prev) => ({ ...prev, [groupName]: !prev[groupName] }));
@@ -41,7 +58,6 @@ export default function MondayTasksTable() {
 
   return (
     <div className="panel flex flex-col p-6 w-full">
-      {/* Header do Widget */}
       <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-[var(--hq-hairline)]">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
@@ -74,38 +90,41 @@ export default function MondayTasksTable() {
           Nenhuma tarefa encontrada.
         </div>
       ) : (
-        <div className="space-y-6 mt-4">
-          {Object.entries(groupedTasks).map(([boardName, items]) => {
+        <div className="space-y-3 mt-4">
+          {BOARD_ORDER.map((boardName) => {
+            const items = groupedTasks[boardName] || [];
             const isCollapsed = collapsedGroups[boardName];
 
             return (
-              <div key={boardName} className="flex flex-col border border-[var(--hq-hairline)] rounded-xl overflow-hidden bg-black/20">
-                {/* Cabeçalho do Grupo */}
+              <div key={boardName} className="flex flex-col border border-[var(--hq-hairline)] rounded-xl overflow-hidden bg-white/[0.01]">
                 <button
                   onClick={() => toggleGroup(boardName)}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-white/[0.02] hover:bg-white/[0.04] border-b border-[var(--hq-hairline)] transition-colors text-left"
+                  className="flex items-center justify-between px-4 py-3 bg-white/[0.02] hover:bg-white/[0.04] transition-colors text-left"
                 >
-                  <ChevronDown
-                    className={`w-3.5 h-3.5 text-[var(--hq-text-ghost)] transition-transform duration-200 ${
-                      isCollapsed ? "-rotate-90" : ""
-                    }`}
-                  />
-                  <span className="text-[13px] font-semibold text-[var(--hq-text)]">{boardName}</span>
-                  <span className="num text-[11px] text-[var(--hq-text-ghost)] ml-1">({items.length})</span>
+                  <div className="flex items-center gap-2">
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 text-[var(--hq-text-ghost)] transition-transform duration-200 ${
+                        isCollapsed ? "-rotate-90" : ""
+                      }`}
+                    />
+                    <span className="text-[13px] font-medium text-[var(--hq-text)]">{boardName}</span>
+                  </div>
+                  <span className="num text-[11px] text-[var(--hq-text-ghost)] font-medium">
+                    {items.length} Elementos
+                  </span>
                 </button>
 
-                {/* Tabela de Itens */}
                 {!isCollapsed && (
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto border-t border-[var(--hq-hairline)]">
                     <table className="w-full text-left border-collapse">
                       <thead>
                         <tr className="border-b border-[var(--hq-hairline)] text-[11px] text-[var(--hq-text-ghost)] bg-white/[0.01]">
                           <th className="py-2.5 px-4 w-10 text-center font-normal">
-                            <input type="checkbox" disabled className="rounded border-zinc-700 bg-zinc-900 opacity-40 cursor-default" />
+                            <input type="checkbox" disabled className="rounded border-zinc-700 bg-zinc-900 opacity-40" />
                           </th>
                           <th className="py-2.5 px-4 font-normal">Elemento</th>
-                          <th className="py-2.5 px-4 font-normal w-40">Grupo</th>
-                          <th className="py-2.5 px-4 font-normal w-40">Quadro</th>
+                          <th className="py-2.5 px-4 font-normal w-44">Grupo</th>
+                          <th className="py-2.5 px-4 font-normal w-44">Quadro</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[var(--hq-hairline)] text-[12px]">

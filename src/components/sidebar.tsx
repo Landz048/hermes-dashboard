@@ -45,7 +45,7 @@ const navGroups = [
     items: [
       { href: "/agents", label: "Agentes", icon: Bot },
       { href: "/memory-wiki", label: "Base de Conhecimento", icon: BookOpen },
-      { href: "/ideas", label: "Ideias", icon: Lightbulb },
+      //{ href: "/ideas", label: "Ideias", icon: Lightbulb },
       { href: "/garden", label: "Automações", icon: Flower2 },
     ],
   },
@@ -55,7 +55,7 @@ const navGroups = [
 const mobileTabsRaw = [
   { href: "/", label: "Painel", icon: Home },
   { href: "/content-os", label: "Pipeline", icon: Workflow },
-  { href: "/tasks", label: "Tarefas", icon: ClipboardList },
+  //{ href: "/tasks", label: "Tarefas", icon: ClipboardList },
   { href: "/memory-wiki", label: "Base", icon: BookOpen },
   { href: "/agents", label: "Agentes", icon: Bot },
 ];
