@@ -27,10 +27,10 @@ const PALETTE = [
 
 // Paleta oficial correspondente às fases de Propostas no Monday
 const PROPOSTAS_COLORS: Record<string, string> = {
-  "Enviada": "#3b82f6",        // Azul
+  "Enviada": "#3b82f6",        // Azul Monday
   "Em elaboração": "#f97316",  // Laranja
   "Pendente": "#eab308",       // Amarelo
-  "Em revisão": "#0284c7",     // Petróleo
+  "Em revisão": "#0284c7",     // Azul Petróleo
   "Cancelada": "#52525b",      // Grafite
   "Sem status": "#a1a1aa",     // Cinza Claro (empty)
 };
@@ -289,7 +289,7 @@ export default function MondayCharts() {
           <div className="py-6 text-center text-[12px] text-[#a1a1aa]">Carregando...</div>
         ) : (
           <div className="space-y-4">
-            {/* Barra Segmentada de Progresso com Paleta Oficial Monday */}
+            {/* Barra Segmentada de Progresso com Porcentagens em Todas as Fatias */}
             <div className="h-7 w-full rounded-lg bg-white/[0.04] overflow-hidden flex border border-white/5">
               {data.propostasProgresso.map((item, idx) => {
                 const pct = totalPropostas > 0 ? (item.value / totalPropostas) * 100 : 0;
@@ -303,13 +303,11 @@ export default function MondayCharts() {
                       width: `${pct}%`,
                       background: barColor,
                     }}
-                    className="h-full transition-all hover:opacity-90 cursor-pointer flex items-center justify-center relative group"
+                    className="h-full transition-all hover:opacity-90 cursor-pointer flex items-center justify-center relative min-w-0"
                   >
-                    {pct >= 12 && (
-                      <span className="text-[10px] font-semibold text-white/95 truncate px-1 select-none">
-                        {pct.toFixed(1)}%
-                      </span>
-                    )}
+                    <span className="text-[10px] sm:text-[11px] font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] truncate px-0.5 select-none">
+                      {pct >= 5 ? `${pct.toFixed(1)}%` : `${pct.toFixed(0)}%`}
+                    </span>
                   </div>
                 );
               })}
