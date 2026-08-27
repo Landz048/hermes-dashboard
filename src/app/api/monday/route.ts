@@ -33,7 +33,7 @@ export async function GET() {
       boards(ids: [${Object.values(BOARD_IDS).join(',')}]) {
         id
         name
-        items_page(limit: 250, query_params: { rules: [{ column_id: "state", compare_value: ["active"], operator: any_of }] }) {
+        items_page(limit: 100) {
           items {
             id
             name
@@ -83,6 +83,11 @@ export async function GET() {
     });
 
     const data = await res.json();
+
+    if (data.errors) {
+      return NextResponse.json({ error: data.errors[0]?.message || 'Erro Monday API' }, { status: 500 });
+    }
+
     const boards = data?.data?.boards || [];
     const usersList = data?.data?.users || [];
 
@@ -91,21 +96,17 @@ export async function GET() {
 
     const getBoard = (id: string) => boards.find((b: any) => b.id === id);
 
-    // =========================================================================
-    // 1. CARDS DO TOPO (Métricas Independentes - Itens Principais Ativos)
-    // =========================================================================
+    // 1. CARDS DO TOPO (Itens Principais = 10, 42, 18, 9)
     const metrics = {
-      projetosJornada: getBoard(BOARD_IDS.jornada)?.items_page?.items?.filter((i: any) => !i.state || i.state === 'active').length ?? 0, // 10
-      contratos: getBoard(BOARD_IDS.contratos)?.items_page?.items?.filter((i: any) => !i.state || i.state === 'active').length ?? 0,       // 42
-      propostas: getBoard(BOARD_IDS.propostas)?.items_page?.items?.filter((i: any) => !i.state || i.state === 'active').length ?? 0,       // 18
-      standBy: getBoard(BOARD_IDS.standBy)?.items_page?.items?.filter((i: any) => !i.state || i.state === 'active').length ?? 0,           // 9
+      projetosJornada: getBoard(BOARD_IDS.jornada)?.items_page?.items?.length ?? 0,
+      contratos: getBoard(BOARD_IDS.contratos)?.items_page?.items?.length ?? 0,
+      propostas: getBoard(BOARD_IDS.propostas)?.items_page?.items?.length ?? 0,
+      standBy: getBoard(BOARD_IDS.standBy)?.items_page?.items?.length ?? 0,
     };
 
-    // =========================================================================
-    // 2. GRÁFICO 1: Pipeline Comercial por Fase
-    // =========================================================================
+    // 2. Pipeline Comercial por Fase
     const comercialBoard = getBoard(BOARD_IDS.comercial);
-    const comercialItems = (comercialBoard?.items_page?.items || []).filter((i: any) => !i.state || i.state === 'active');
+    const comercialItems = comercialBoard?.items_page?.items || [];
     const comercialMap: Record<string, number> = {};
 
     comercialItems.forEach((item: any) => {
@@ -118,11 +119,9 @@ export async function GET() {
 
     const pipelineComercial = Object.entries(comercialMap).map(([name, value]) => ({ name, value }));
 
-    // =========================================================================
-    // 3. GRÁFICO 2: Projetos por Fase — Jornada
-    // =========================================================================
+    // 3. Projetos por Fase — Jornada
     const jornadaBoard = getBoard(BOARD_IDS.jornada);
-    const jornadaItems = (jornadaBoard?.items_page?.items || []).filter((i: any) => !i.state || i.state === 'active');
+    const jornadaItems = jornadaBoard?.items_page?.items || [];
     const jornadaMap: Record<string, number> = {};
 
     jornadaItems.forEach((item: any) => {
@@ -135,11 +134,9 @@ export async function GET() {
 
     const projetosJornadaFases = Object.entries(jornadaMap).map(([name, value]) => ({ name, value }));
 
-    // =========================================================================
-    // 4. GRÁFICO 3: Contratos por Status
-    // =========================================================================
+    // 4. Contratos por Status
     const contratosBoard = getBoard(BOARD_IDS.contratos);
-    const contratosItems = (contratosBoard?.items_page?.items || []).filter((i: any) => !i.state || i.state === 'active');
+    const contratosItems = contratosBoard?.items_page?.items || [];
     const contratosMap: Record<string, number> = {};
 
     contratosItems.forEach((item: any) => {
@@ -152,9 +149,7 @@ export async function GET() {
 
     const contratosStatus = Object.entries(contratosMap).map(([name, value]) => ({ name, value }));
 
-    // =========================================================================
-    // 5. GRÁFICO 4: Carga por Responsável — Comercial
-    // =========================================================================
+    // 5. Carga por Responsável — Comercial
     const countsMap: Record<string, number> = {};
     TEAM_ORDER.forEach((m) => { countsMap[m] = 0; });
 
@@ -176,28 +171,22 @@ export async function GET() {
       value: countsMap[name] || 0,
     }));
 
-    // =========================================================================
-    // 6. GRÁFICO 5: Propostas — Progresso (Extração Direta da Coluna de Status)
-    // =========================================================================
+    // 6. Propostas — Progresso
     const propostasBoard = getBoard(BOARD_IDS.propostas);
-    const propostasItems = (propostasBoard?.items_page?.items || []).filter((i: any) => !i.state || i.state === 'active');
+    const propostasItems = propostasBoard?.items_page?.items || [];
     const propostasMap: Record<string, number> = {};
 
     propostasItems.forEach((item: any) => {
-      // Busca prioritariamente a coluna de status/progresso da proposta
       const statusCol = item.column_values?.find(
         (c: any) => (c.type === 'status' || c.type === 'color' || c.id === 'status' || c.id === 'progresso') && c.text
       );
-      
       const status = statusCol?.text?.trim() || item.group?.title?.trim() || 'Em elaboração';
       propostasMap[status] = (propostasMap[status] || 0) + 1;
     });
 
     const propostasProgresso = Object.entries(propostasMap).map(([name, value]) => ({ name, value }));
 
-    // =========================================================================
-    // 7. TABELA: Tarefas em Aberto
-    // =========================================================================
+    // 7. Tarefas em Aberto
     const targetBoards = [
       { key: 'standBy', name: 'Stand By' },
       { key: 'comercial', name: 'Comercial' },
@@ -218,7 +207,7 @@ export async function GET() {
       const b = getBoard((BOARD_IDS as any)[key]);
       if (!b) return;
 
-      (b.items_page?.items || []).filter((it: any) => !it.state || it.state === 'active').forEach((it: any) => {
+      (b.items_page?.items || []).forEach((it: any) => {
         tarefasEmAberto.push({
           id: it.id,
           name: it.name,
@@ -227,7 +216,7 @@ export async function GET() {
           board: name,
         });
 
-        (it.subitems || []).filter((sub: any) => !sub.state || sub.state === 'active').forEach((sub: any) => {
+        (it.subitems || []).forEach((sub: any) => {
           tarefasEmAberto.push({
             id: sub.id,
             name: `↳ ${sub.name}`,
