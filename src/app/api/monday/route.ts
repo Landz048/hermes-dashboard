@@ -8,6 +8,16 @@ const BOARD_IDS = {
   comercial: '18417081172',
 };
 
+// Equipe Comercial oficial do widget do Monday
+const TEAM_MEMBERS = [
+  'John',
+  'Felipe',
+  'Natália',
+  'André',
+  'Clara',
+  'Diogo',
+];
+
 export async function GET() {
   const token = process.env.MONDAY_API_TOKEN;
 
@@ -17,6 +27,10 @@ export async function GET() {
 
   const query = `
     query {
+      users {
+        id
+        name
+      }
       boards(ids: [${Object.values(BOARD_IDS).join(',')}]) {
         id
         name
@@ -54,6 +68,11 @@ export async function GET() {
 
     const data = await res.json();
     const boards = data?.data?.boards || [];
+    const usersList = data?.data?.users || [];
+
+    const usersMap = new Map<string, string>();
+    usersList.forEach((u: any) => usersMap.set(String(u.id), u.name));
+
     const getBoard = (id: string) => boards.find((b: any) => b.id === id);
 
     // 1. Métricas principais (Cards)
@@ -67,44 +86,45 @@ export async function GET() {
     // 2. Pipeline Comercial por Fase & Carga por Responsável
     const comercialItems = getBoard(BOARD_IDS.comercial)?.items_page?.items || [];
     const comercialMap: Record<string, number> = {};
-    const responsaveisMap: Record<string, number> = {};
+    
+    // Inicia todos os membros da equipe com 0
+    const countsMap: Record<string, number> = {};
+    TEAM_MEMBERS.forEach((m) => { countsMap[m] = 0; });
 
     comercialItems.forEach((item: any) => {
       const grupo = item.group?.title?.trim() || 'Outros';
       comercialMap[grupo] = (comercialMap[grupo] || 0) + 1;
 
-      // Busca qualquer coluna de pessoa/responsável que tenha texto preenchido
-      const personCol = item.column_values?.find((c: any) => {
-        const isPeopleType = c.type === 'people' || c.type === 'multiple-person';
-        const isPeopleName = c.id?.toLowerCase().includes('person') || 
-                             c.id?.toLowerCase().includes('responsavel') ||
-                             c.id?.toLowerCase().includes('owner') ||
-                             c.id?.toLowerCase().includes('user');
-        return (isPeopleType || isPeopleName) && Boolean(c.text && c.text.trim() !== '');
-      });
-
-      // Se achou texto direto (ex: "John", "Felipe"), usa ele. Senão busca qualquer coluna de texto preenchida com nomes conhecidos
-      let respName = personCol?.text?.trim();
-
-      if (!respName) {
-        // Fallback: procura se alguma coluna contém nomes dos responsáveis conhecidos
-        const anyColWithName = item.column_values?.find((c: any) => 
-          c.text && (c.text.includes('John') || c.text.includes('Felipe') || c.text.includes('Thiago'))
-        );
-        respName = anyColWithName?.text?.trim() || 'Sem responsável';
-      }
-
-      // Se houver mais de uma pessoa na mesma célula (separadas por vírgula)
-      const peopleList = respName.split(',').map((p: string) => p.trim()).filter(Boolean);
-      peopleList.forEach((person: string) => {
-        responsaveisMap[person] = (responsaveisMap[person] || 0) + 1;
+      item.column_values?.forEach((col: any) => {
+        if (col.text && (col.type === 'people' || col.type === 'multiple-person' || col.id?.includes('person') || col.id?.includes('responsavel'))) {
+          TEAM_MEMBERS.forEach((m) => {
+            if (col.text.toLowerCase().includes(m.toLowerCase())) {
+              countsMap[m] = (countsMap[m] || 0) + 1;
+            }
+          });
+        } else if (col.value && (col.type === 'people' || col.type === 'multiple-person')) {
+          try {
+            const parsed = JSON.parse(col.value);
+            parsed?.personsAndTeams?.forEach((p: any) => {
+              const uName = usersMap.get(String(p.id)) || '';
+              TEAM_MEMBERS.forEach((m) => {
+                if (uName.toLowerCase().includes(m.toLowerCase())) {
+                  countsMap[m] = (countsMap[m] || 0) + 1;
+                }
+              });
+            });
+          } catch (_) {}
+        }
       });
     });
 
     const pipelineComercial = Object.entries(comercialMap).map(([name, value]) => ({ name, value }));
-    const cargaResponsavel = Object.entries(responsaveisMap)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value);
+
+    // Retorna todos os membros na ordem exata do widget
+    const cargaResponsavel = TEAM_MEMBERS.map((name) => ({
+      name,
+      value: countsMap[name] || 0,
+    }));
 
     // 3. Projetos por Fase — Jornada
     const jornadaItems = getBoard(BOARD_IDS.jornada)?.items_page?.items || [];
