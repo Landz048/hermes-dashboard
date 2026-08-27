@@ -16,13 +16,20 @@ export function ProposalsCard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/hermes/proposals")
-      .then((res) => res.json())
-      .then((res) => {
-        setData(res);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+    const loadData = () => {
+      fetch("/api/hermes/proposals")
+        .then((res) => res.json())
+        .then((res) => {
+          setData(res);
+          setLoading(false);
+        })
+        .catch(() => setLoading(false));
+    };
+
+    loadData();
+    // Atualiza automaticamente a cada 1 hora (3.600.000 ms)
+    const interval = setInterval(loadData, 60 * 60 * 1000);
+    return () => clearInterval(interval);
   }, []);
 
   return (
