@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 
-// Força o Next.js a não cachear a rota, trazendo os dados sempre em tempo real
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
@@ -34,10 +33,11 @@ export async function GET() {
       boards(ids: [${Object.values(BOARD_IDS).join(',')}]) {
         id
         name
-        items_page(limit: 100) {
+        items_page(limit: 250, query_params: { rules: [{ column_id: "state", compare_value: ["active"], operator: any_of }] }) {
           items {
             id
             name
+            state
             group {
               id
               title
@@ -52,6 +52,7 @@ export async function GET() {
             subitems {
               id
               name
+              state
               group {
                 id
                 title
@@ -90,27 +91,76 @@ export async function GET() {
 
     const getBoard = (id: string) => boards.find((b: any) => b.id === id);
 
-    // 1. Métricas principais dos Cards do Topo (APENAS itens principais = 10, 42, 18, 9)
+    // =========================================================================
+    // 1. CARDS DO TOPO (Métricas Independentes - Itens Principais Ativos)
+    // =========================================================================
     const metrics = {
-      projetosJornada: getBoard(BOARD_IDS.jornada)?.items_page?.items?.length ?? 0,
-      contratos: getBoard(BOARD_IDS.contratos)?.items_page?.items?.length ?? 0,
-      propostas: getBoard(BOARD_IDS.propostas)?.items_page?.items?.length ?? 0,
-      standBy: getBoard(BOARD_IDS.standBy)?.items_page?.items?.length ?? 0,
+      projetosJornada: getBoard(BOARD_IDS.jornada)?.items_page?.items?.filter((i: any) => !i.state || i.state === 'active').length ?? 0, // 10
+      contratos: getBoard(BOARD_IDS.contratos)?.items_page?.items?.filter((i: any) => !i.state || i.state === 'active').length ?? 0,       // 42
+      propostas: getBoard(BOARD_IDS.propostas)?.items_page?.items?.filter((i: any) => !i.state || i.state === 'active').length ?? 0,       // 18
+      standBy: getBoard(BOARD_IDS.standBy)?.items_page?.items?.filter((i: any) => !i.state || i.state === 'active').length ?? 0,           // 9
     };
 
-    // 2. Comercial por Fase & Carga por Responsável
+    // =========================================================================
+    // 2. GRÁFICO 1: Pipeline Comercial por Fase
+    // =========================================================================
     const comercialBoard = getBoard(BOARD_IDS.comercial);
-    const comercialItems = comercialBoard?.items_page?.items || [];
+    const comercialItems = (comercialBoard?.items_page?.items || []).filter((i: any) => !i.state || i.state === 'active');
     const comercialMap: Record<string, number> = {};
+
+    comercialItems.forEach((item: any) => {
+      const statusCol = item.column_values?.find(
+        (c: any) => (c.type === 'status' || c.type === 'color' || c.id === 'status') && c.text
+      );
+      const fase = statusCol?.text?.trim() || item.group?.title?.trim() || 'Outros';
+      comercialMap[fase] = (comercialMap[fase] || 0) + 1;
+    });
+
+    const pipelineComercial = Object.entries(comercialMap).map(([name, value]) => ({ name, value }));
+
+    // =========================================================================
+    // 3. GRÁFICO 2: Projetos por Fase — Jornada
+    // =========================================================================
+    const jornadaBoard = getBoard(BOARD_IDS.jornada);
+    const jornadaItems = (jornadaBoard?.items_page?.items || []).filter((i: any) => !i.state || i.state === 'active');
+    const jornadaMap: Record<string, number> = {};
+
+    jornadaItems.forEach((item: any) => {
+      const statusCol = item.column_values?.find(
+        (c: any) => (c.type === 'status' || c.type === 'color' || c.id === 'status') && c.text
+      );
+      const fase = statusCol?.text?.trim() || item.group?.title?.trim() || 'Outros';
+      jornadaMap[fase] = (jornadaMap[fase] || 0) + 1;
+    });
+
+    const projetosJornadaFases = Object.entries(jornadaMap).map(([name, value]) => ({ name, value }));
+
+    // =========================================================================
+    // 4. GRÁFICO 3: Contratos por Status
+    // =========================================================================
+    const contratosBoard = getBoard(BOARD_IDS.contratos);
+    const contratosItems = (contratosBoard?.items_page?.items || []).filter((i: any) => !i.state || i.state === 'active');
+    const contratosMap: Record<string, number> = {};
+
+    contratosItems.forEach((item: any) => {
+      const statusCol = item.column_values?.find(
+        (c: any) => (c.type === 'status' || c.type === 'color' || c.id === 'status') && c.text
+      );
+      const status = statusCol?.text?.trim() || item.group?.title?.trim() || 'Ativos';
+      contratosMap[status] = (contratosMap[status] || 0) + 1;
+    });
+
+    const contratosStatus = Object.entries(contratosMap).map(([name, value]) => ({ name, value }));
+
+    // =========================================================================
+    // 5. GRÁFICO 4: Carga por Responsável — Comercial
+    // =========================================================================
     const countsMap: Record<string, number> = {};
     TEAM_ORDER.forEach((m) => { countsMap[m] = 0; });
 
     comercialItems.forEach((item: any) => {
-      const grupo = item.group?.title?.trim() || 'Outros';
-      comercialMap[grupo] = (comercialMap[grupo] || 0) + 1;
-
       item.column_values?.forEach((col: any) => {
-        if (col.text) {
+        if (col.text && (col.type === 'people' || col.type === 'multiple-person' || col.id?.includes('person') || col.id?.includes('responsavel'))) {
           const normText = normalizeStr(col.text);
           TEAM_ORDER.forEach((member) => {
             if (normText.includes(normalizeStr(member))) {
@@ -121,43 +171,33 @@ export async function GET() {
       });
     });
 
-    const pipelineComercial = Object.entries(comercialMap).map(([name, value]) => ({ name, value }));
     const cargaResponsavel = TEAM_ORDER.map((name) => ({
       name,
       value: countsMap[name] || 0,
     }));
 
-    // 3. Projetos por Fase — Jornada
-    const jornadaBoard = getBoard(BOARD_IDS.jornada);
-    const jornadaItems = jornadaBoard?.items_page?.items || [];
-    const jornadaMap: Record<string, number> = {};
-    jornadaItems.forEach((item: any) => {
-      const grupo = item.group?.title?.trim() || 'Outros';
-      jornadaMap[grupo] = (jornadaMap[grupo] || 0) + 1;
-    });
-    const projetosJornadaFases = Object.entries(jornadaMap).map(([name, value]) => ({ name, value }));
-
-    // 4. Contratos por Status
-    const contratosBoard = getBoard(BOARD_IDS.contratos);
-    const contratosItems = contratosBoard?.items_page?.items || [];
-    const contratosMap: Record<string, number> = {};
-    contratosItems.forEach((item: any) => {
-      const grupo = item.group?.title?.trim() || 'Ativos';
-      contratosMap[grupo] = (contratosMap[grupo] || 0) + 1;
-    });
-    const contratosStatus = Object.entries(contratosMap).map(([name, value]) => ({ name, value }));
-
-    // 5. Propostas — Progresso
+    // =========================================================================
+    // 6. GRÁFICO 5: Propostas — Progresso (Extração Direta da Coluna de Status)
+    // =========================================================================
     const propostasBoard = getBoard(BOARD_IDS.propostas);
-    const propostasItems = propostasBoard?.items_page?.items || [];
+    const propostasItems = (propostasBoard?.items_page?.items || []).filter((i: any) => !i.state || i.state === 'active');
     const propostasMap: Record<string, number> = {};
+
     propostasItems.forEach((item: any) => {
-      const grupo = item.group?.title?.trim() || 'Em elaboração';
-      propostasMap[grupo] = (propostasMap[grupo] || 0) + 1;
+      // Busca prioritariamente a coluna de status/progresso da proposta
+      const statusCol = item.column_values?.find(
+        (c: any) => (c.type === 'status' || c.type === 'color' || c.id === 'status' || c.id === 'progresso') && c.text
+      );
+      
+      const status = statusCol?.text?.trim() || item.group?.title?.trim() || 'Em elaboração';
+      propostasMap[status] = (propostasMap[status] || 0) + 1;
     });
+
     const propostasProgresso = Object.entries(propostasMap).map(([name, value]) => ({ name, value }));
 
-    // 6. Lista de Tarefas em Aberto (Inclui Itens + Subitens para manter os totais da lista do Monday)
+    // =========================================================================
+    // 7. TABELA: Tarefas em Aberto
+    // =========================================================================
     const targetBoards = [
       { key: 'standBy', name: 'Stand By' },
       { key: 'comercial', name: 'Comercial' },
@@ -178,7 +218,7 @@ export async function GET() {
       const b = getBoard((BOARD_IDS as any)[key]);
       if (!b) return;
 
-      (b.items_page?.items || []).forEach((it: any) => {
+      (b.items_page?.items || []).filter((it: any) => !it.state || it.state === 'active').forEach((it: any) => {
         tarefasEmAberto.push({
           id: it.id,
           name: it.name,
@@ -187,7 +227,7 @@ export async function GET() {
           board: name,
         });
 
-        (it.subitems || []).forEach((sub: any) => {
+        (it.subitems || []).filter((sub: any) => !sub.state || sub.state === 'active').forEach((sub: any) => {
           tarefasEmAberto.push({
             id: sub.id,
             name: `↳ ${sub.name}`,
