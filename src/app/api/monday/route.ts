@@ -13,6 +13,18 @@ const BOARD_IDS = {
 
 const TEAM_ORDER = ['John', 'Felipe', 'Natália', 'André', 'Clara', 'Diogo'];
 
+// Lista das fases oficiais do Pipeline Comercial no Monday
+const VALID_COMERCIAL_STAGES = [
+  'Prospecção',
+  'Proposta',
+  'Stand By',
+  'Stand by',
+  'Diagnóstico Preliminar',
+  'Aceito',
+  'Recusado',
+  'No Go',
+];
+
 function normalizeStr(str: string) {
   return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 }
@@ -107,7 +119,7 @@ export async function GET() {
     };
 
     // =========================================================================
-    // 2. PIPELINE COMERCIAL POR FASE (11 Prospecção, 7 Stand By, etc.)
+    // 2. PIPELINE COMERCIAL POR FASE (Apenas status válidos, sem grupos)
     // =========================================================================
     const comercialBoard = getBoard(BOARD_IDS.comercial);
     const comercialItems = comercialBoard?.items_page?.items || [];
@@ -115,10 +127,15 @@ export async function GET() {
 
     comercialItems.forEach((item: any) => {
       const statusCol = item.column_values?.find(
-        (c: any) => (c.type === 'status' || c.type === 'color' || c.id === 'status') && c.text
+        (c: any) => (c.type === 'status' || c.type === 'color' || c.id === 'status' || c.id === 'fase') && c.text
       );
-      const fase = statusCol?.text?.trim() || item.group?.title?.trim() || 'Outros';
-      comercialMap[fase] = (comercialMap[fase] || 0) + 1;
+      
+      const faseText = statusCol?.text?.trim();
+      if (faseText && VALID_COMERCIAL_STAGES.some((s) => normalizeStr(s) === normalizeStr(faseText))) {
+        // Normaliza Stand by para 'Stand By'
+        const normalizedLabel = normalizeStr(faseText) === 'stand by' ? 'Stand By' : faseText;
+        comercialMap[normalizedLabel] = (comercialMap[normalizedLabel] || 0) + 1;
+      }
     });
 
     const pipelineComercial = Object.entries(comercialMap).map(([name, value]) => ({ name, value }));
@@ -141,7 +158,7 @@ export async function GET() {
     const projetosJornadaFases = Object.entries(jornadaMap).map(([name, value]) => ({ name, value }));
 
     // =========================================================================
-    // 4. CONTRATOS POR STATUS (Filtro exclusivo na coluna de status real)
+    // 4. CONTRATOS POR STATUS (Apenas coluna de status real)
     // =========================================================================
     const contratosBoard = getBoard(BOARD_IDS.contratos);
     const contratosItems = contratosBoard?.items_page?.items || [];
@@ -161,7 +178,7 @@ export async function GET() {
     const contratosStatus = Object.entries(contratosMap).map(([name, value]) => ({ name, value }));
 
     // =========================================================================
-    // 5. CARGA POR RESPONSÁVEL — COMERCIAL (Varredura robusta por texto/JSON)
+    // 5. CARGA POR RESPONSÁVEL — COMERCIAL
     // =========================================================================
     const countsMap: Record<string, number> = {};
     TEAM_ORDER.forEach((m) => { countsMap[m] = 0; });
@@ -174,7 +191,6 @@ export async function GET() {
           contentToInspect += ` ${col.text}`;
         }
 
-        // Caso a coluna armazene os IDs dos usuários no campo value
         if (col.value) {
           try {
             const parsed = JSON.parse(col.value);
@@ -184,9 +200,7 @@ export async function GET() {
                 if (uName) contentToInspect += ` ${uName}`;
               });
             }
-          } catch {
-            // Se não for JSON parseável, segue normalmente
-          }
+          } catch {}
         }
 
         if (contentToInspect) {
@@ -216,8 +230,10 @@ export async function GET() {
       const statusCol = item.column_values?.find(
         (c: any) => (c.type === 'status' || c.type === 'color' || c.id === 'status' || c.id === 'progresso') && c.text
       );
-      const status = statusCol?.text?.trim() || item.group?.title?.trim() || 'Em elaboração';
-      propostasMap[status] = (propostasMap[status] || 0) + 1;
+      if (statusCol?.text && statusCol.text.trim()) {
+        const status = statusCol.text.trim();
+        propostasMap[status] = (propostasMap[status] || 0) + 1;
+      }
     });
 
     const propostasProgresso = Object.entries(propostasMap).map(([name, value]) => ({ name, value }));
