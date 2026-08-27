@@ -32,6 +32,7 @@ export async function GET() {
               id
               text
               type
+              value
             }
           }
         }
@@ -63,7 +64,7 @@ export async function GET() {
       standBy: getBoard(BOARD_IDS.standBy)?.items_page?.items?.length ?? 0,
     };
 
-    // 2. Pipeline Comercial por Fase
+    // 2. Pipeline Comercial por Fase & Carga por Responsável
     const comercialItems = getBoard(BOARD_IDS.comercial)?.items_page?.items || [];
     const comercialMap: Record<string, number> = {};
     const responsaveisMap: Record<string, number> = {};
@@ -72,10 +73,32 @@ export async function GET() {
       const grupo = item.group?.title?.trim() || 'Outros';
       comercialMap[grupo] = (comercialMap[grupo] || 0) + 1;
 
-      // Extrai responsável da coluna tipo people/person
-      const personCol = item.column_values?.find((c: any) => c.type === 'people' || c.type === 'multiple-person' || c.id?.toLowerCase().includes('person') || c.id?.toLowerCase().includes('responsavel'));
-      const respName = personCol?.text?.trim() || 'Sem responsável';
-      responsaveisMap[respName] = (responsaveisMap[respName] || 0) + 1;
+      // Busca qualquer coluna de pessoa/responsável que tenha texto preenchido
+      const personCol = item.column_values?.find((c: any) => {
+        const isPeopleType = c.type === 'people' || c.type === 'multiple-person';
+        const isPeopleName = c.id?.toLowerCase().includes('person') || 
+                             c.id?.toLowerCase().includes('responsavel') ||
+                             c.id?.toLowerCase().includes('owner') ||
+                             c.id?.toLowerCase().includes('user');
+        return (isPeopleType || isPeopleName) && Boolean(c.text && c.text.trim() !== '');
+      });
+
+      // Se achou texto direto (ex: "John", "Felipe"), usa ele. Senão busca qualquer coluna de texto preenchida com nomes conhecidos
+      let respName = personCol?.text?.trim();
+
+      if (!respName) {
+        // Fallback: procura se alguma coluna contém nomes dos responsáveis conhecidos
+        const anyColWithName = item.column_values?.find((c: any) => 
+          c.text && (c.text.includes('John') || c.text.includes('Felipe') || c.text.includes('Thiago'))
+        );
+        respName = anyColWithName?.text?.trim() || 'Sem responsável';
+      }
+
+      // Se houver mais de uma pessoa na mesma célula (separadas por vírgula)
+      const peopleList = respName.split(',').map((p: string) => p.trim()).filter(Boolean);
+      peopleList.forEach((person: string) => {
+        responsaveisMap[person] = (responsaveisMap[person] || 0) + 1;
+      });
     });
 
     const pipelineComercial = Object.entries(comercialMap).map(([name, value]) => ({ name, value }));
