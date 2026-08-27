@@ -8,9 +8,8 @@ import { ApprovalInbox } from "@/components/approval-inbox";
 import { ProposalsCard } from "@/components/proposal-card";
 import { MondayCards } from "@/components/monday-cards";
 
-// Carregamento dinâmico sem SSR para gráficos Recharts
 const MondayCharts = dynamic(
-  () => import("@/components/monday-charts").then((mod) => mod.MondayCharts),
+  () => import("@/components/monday-charts"),
   { ssr: false }
 );
 
@@ -318,7 +317,7 @@ export default function Dashboard() {
             </div>
           </div>
           
-          {/* Gráficos Recharts do Monday */}
+          {/* Todos os Gráficos do Monday */}
           <div className="hq-rise" style={rise(3)}>
             <MondayCharts />
           </div>
