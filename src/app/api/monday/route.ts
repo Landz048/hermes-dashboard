@@ -34,9 +34,11 @@ export async function GET() {
           items {
             id
             name
+            state
             group {
               id
               title
+              color
             }
             column_values {
               id
@@ -80,10 +82,10 @@ export async function GET() {
     };
 
     // 2. Comercial por Fase & Carga por Responsável
-    const comercialItems = getBoard(BOARD_IDS.comercial)?.items_page?.items || [];
+    const comercialBoard = getBoard(BOARD_IDS.comercial);
+    const comercialItems = comercialBoard?.items_page?.items || [];
     const comercialMap: Record<string, number> = {};
     const countsMap: Record<string, number> = {};
-
     TEAM_ORDER.forEach((m) => { countsMap[m] = 0; });
 
     comercialItems.forEach((item: any) => {
@@ -91,7 +93,6 @@ export async function GET() {
       comercialMap[grupo] = (comercialMap[grupo] || 0) + 1;
 
       item.column_values?.forEach((col: any) => {
-        // Checagem por texto direto
         if (col.text) {
           const normText = normalizeStr(col.text);
           TEAM_ORDER.forEach((member) => {
@@ -100,7 +101,6 @@ export async function GET() {
             }
           });
         }
-        // Checagem por ID de usuário dentro do JSON
         if (col.value && (col.type === 'people' || col.type === 'multiple-person')) {
           try {
             const parsed = JSON.parse(col.value);
@@ -125,7 +125,8 @@ export async function GET() {
     }));
 
     // 3. Projetos por Fase — Jornada
-    const jornadaItems = getBoard(BOARD_IDS.jornada)?.items_page?.items || [];
+    const jornadaBoard = getBoard(BOARD_IDS.jornada);
+    const jornadaItems = jornadaBoard?.items_page?.items || [];
     const jornadaMap: Record<string, number> = {};
     jornadaItems.forEach((item: any) => {
       const grupo = item.group?.title?.trim() || 'Outros';
@@ -134,7 +135,8 @@ export async function GET() {
     const projetosJornadaFases = Object.entries(jornadaMap).map(([name, value]) => ({ name, value }));
 
     // 4. Contratos por Status
-    const contratosItems = getBoard(BOARD_IDS.contratos)?.items_page?.items || [];
+    const contratosBoard = getBoard(BOARD_IDS.contratos);
+    const contratosItems = contratosBoard?.items_page?.items || [];
     const contratosMap: Record<string, number> = {};
     contratosItems.forEach((item: any) => {
       const grupo = item.group?.title?.trim() || 'Ativos';
@@ -143,13 +145,36 @@ export async function GET() {
     const contratosStatus = Object.entries(contratosMap).map(([name, value]) => ({ name, value }));
 
     // 5. Propostas — Progresso
-    const propostasItems = getBoard(BOARD_IDS.propostas)?.items_page?.items || [];
+    const propostasBoard = getBoard(BOARD_IDS.propostas);
+    const propostasItems = propostasBoard?.items_page?.items || [];
     const propostasMap: Record<string, number> = {};
     propostasItems.forEach((item: any) => {
       const grupo = item.group?.title?.trim() || 'Em elaboração';
       propostasMap[grupo] = (propostasMap[grupo] || 0) + 1;
     });
     const propostasProgresso = Object.entries(propostasMap).map(([name, value]) => ({ name, value }));
+
+    // 6. Tarefas em Aberto (Coleta itens ativos de todos os quadros conectados)
+    const tarefasEmAberto: Array<{
+      id: string;
+      name: string;
+      group: string;
+      groupColor: string;
+      board: string;
+    }> = [];
+
+    boards.forEach((b: any) => {
+      const boardName = b.name;
+      (b.items_page?.items || []).forEach((it: any) => {
+        tarefasEmAberto.push({
+          id: it.id,
+          name: it.name,
+          group: it.group?.title || 'Geral',
+          groupColor: it.group?.color || '#00ca72',
+          board: boardName,
+        });
+      });
+    });
 
     return NextResponse.json({
       metrics,
@@ -158,6 +183,7 @@ export async function GET() {
       contratosStatus,
       cargaResponsavel,
       propostasProgresso,
+      tarefasEmAberto,
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

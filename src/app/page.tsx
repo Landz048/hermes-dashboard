@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useRef } from "react";
 import dynamic from "next/dynamic";
-import { Trash2, Lightbulb } from "lucide-react";
 import { HermesBriefing } from "@/components/hermes-briefing";
 import { ApprovalInbox } from "@/components/approval-inbox";
 import { ProposalsCard } from "@/components/proposal-card";
@@ -13,27 +12,22 @@ const MondayCharts = dynamic(
   { ssr: false }
 );
 
+const MondayTasksTable = dynamic(
+  () => import("@/components/monday-tasks"),
+  { ssr: false }
+);
+
 // ── Types ─────────────────────────────────────────────────
-interface BuildIdea { title: string; description: string; effort: string }
 interface Process { name: string; status: string; uptime: string }
-interface KanbanTask { id: string; title: string; assignee: string; status: string; priority: number }
-interface HermesKanban { board: string; slug: string; total: number; counts: Record<string, number>; tasks: KanbanTask[] }
 interface ScoreComponent { score: number; weight?: number; label: string; detail?: string }
 interface ScoreData { score: number; grade: string; label: string; color: string; period?: string; components: Record<string, ScoreComponent> }
 
 interface HomeData {
-  topBuildIdeas: BuildIdea[];
-  polyBalance: number; polyWinRate: number; polyTodayPnl: number; polyAllTimePnl: number;
-  allTimePnl: number; todayPnl: number;
   processes: Process[];
-  hermesKanban: HermesKanban;
 }
 
 const EMPTY: HomeData = {
-  topBuildIdeas: [],
-  polyBalance: 0, polyWinRate: 0, polyTodayPnl: 0, polyAllTimePnl: 0,
-  allTimePnl: 0, todayPnl: 0, processes: [],
-  hermesKanban: { board: "Assistente Hermes 24/7", slug: "hermes-24-7-assistant", total: 0, counts: {}, tasks: [] },
+  processes: [],
 };
 
 // ── Animated counter ──────────────────────────────────────
@@ -75,41 +69,6 @@ function SectionLabel({ children, right }: { children: React.ReactNode; right?: 
   );
 }
 
-// ── Painel de Ideias / Automações ─────────────────────────
-function IdeasPanel({ buildIdeas }: { buildIdeas: BuildIdea[] }) {
-  return (
-    <div className="panel flex flex-col p-6 h-full">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Lightbulb className="w-4 h-4 text-amber-400" />
-          <span className="eyebrow">Próximos Projetos & Ideias</span>
-        </div>
-      </div>
-
-      <div className="space-y-1 min-h-[172px]">
-        {buildIdeas.length > 0 ? buildIdeas.map((it, idx) => (
-          <div key={idx} className="flex gap-3 items-center py-2 border-b border-[var(--hq-hairline)] last:border-0">
-            <span className="num text-[11px] text-[var(--hq-text-ghost)] w-5 shrink-0">{String(idx + 1).padStart(2, "0")}</span>
-            <p className="text-[var(--hq-text-dim)] text-[13px] font-medium line-clamp-1 flex-1">{it.title}</p>
-            <span className="text-[10px] px-1.5 py-0.5 rounded-md num border shrink-0"
-              style={it.effort === "quick win"
-                ? { color: "var(--hq-up)", borderColor: "rgba(52,211,153,0.25)", background: "rgba(52,211,153,0.08)" }
-                : it.effort === "large"
-                ? { color: "var(--hq-down)", borderColor: "rgba(251,113,133,0.25)", background: "rgba(251,113,133,0.08)" }
-                : { color: "var(--hq-warn)", borderColor: "rgba(251,191,36,0.25)", background: "rgba(251,191,36,0.08)" }}>
-              {it.effort}
-            </span>
-          </div>
-        )) : <Empty>Nenhuma ideia cadastrada no momento.</Empty>}
-      </div>
-    </div>
-  );
-}
-
-function Empty({ children }: { children: React.ReactNode }) {
-  return <p className="text-[var(--hq-text-ghost)] text-[13px] py-8 text-center">{children}</p>;
-}
-
 // ── Agents strip ──────────────────────────────────────────
 function AgentsStrip({ processes }: { processes: Process[] }) {
   if (processes.length === 0) return null;
@@ -126,79 +85,6 @@ function AgentsStrip({ processes }: { processes: Process[] }) {
           <span className="num text-[var(--hq-text-ghost)] text-[10px]">{p.uptime}</span>
         </div>
       ))}
-    </div>
-  );
-}
-
-// ── Hermes Kanban com Botão de Excluir ─────────────────────
-function HermesKanbanPanel({ kanban }: { kanban: HermesKanban }) {
-  const statusColor = (s: string) => {
-    const k = s.toLowerCase();
-    if (k.includes("done") || k.includes("complete") || k.includes("concl")) return "var(--hq-up)";
-    if (k.includes("progress") || k.includes("doing") || k.includes("andamento")) return "var(--accent)";
-    if (k.includes("block") || k.includes("trav")) return "var(--hq-down)";
-    return "var(--hq-text-faint)";
-  };
-
-  const handleDeleteTask = async (taskId: string) => {
-    if (!window.confirm("Deseja realmente excluir esta tarefa?")) return;
-    try {
-      const res = await fetch(`/api/tasks?id=${taskId}`, { method: "DELETE" });
-      if (res.ok) {
-        window.location.reload();
-      } else {
-        alert("Erro ao excluir tarefa");
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const entries = Object.entries(kanban.counts || {});
-  return (
-    <div className="panel flex flex-col p-6 h-full">
-      <div className="flex items-center justify-between mb-4">
-        <div className="min-w-0">
-          <span className="eyebrow">Quadro de Tarefas</span>
-          <p className="text-[13px] text-[var(--hq-text-dim)] truncate mt-1">{kanban.board}</p>
-        </div>
-        <span className="num text-[22px] font-semibold text-[var(--hq-text)] shrink-0">{kanban.total}</span>
-      </div>
-
-      {entries.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mb-4">
-          {entries.map(([status, count]) => (
-            <span key={status} className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium num"
-              style={{ color: statusColor(status), background: `color-mix(in srgb, ${statusColor(status)} 12%, transparent)`, border: `1px solid color-mix(in srgb, ${statusColor(status)} 22%, transparent)` }}>
-              {status} {count}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {kanban.tasks.length === 0 ? <Empty>Nenhuma tarefa ativa.</Empty> : (
-        <div className="space-y-0">
-          {kanban.tasks.slice(0, 8).map((t) => (
-            <div key={t.id} className="group flex items-center justify-between gap-3 py-2.5 border-b border-[var(--hq-hairline)] last:border-0">
-              <div className="flex items-center gap-3 min-w-0 flex-1">
-                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: statusColor(t.status) }} />
-                <p className="text-[13px] text-[var(--hq-text-dim)] leading-snug line-clamp-1 flex-1">{t.title}</p>
-                {t.assignee && <span className="num text-[10.5px] text-[var(--hq-text-ghost)] shrink-0">{t.assignee}</span>}
-              </div>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDeleteTask(t.id);
-                }}
-                className="opacity-0 group-hover:opacity-100 p-1 text-[var(--hq-text-ghost)] hover:text-red-400 transition-all rounded"
-                title="Excluir tarefa"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -244,7 +130,7 @@ function ScoreGauge({ score }: { score: ScoreData }) {
   );
 }
 
-// ── Main ──────────────────────────────────────────────────
+// ── Main Dashboard ────────────────────────────────────────
 export default function Dashboard() {
   const [data, setData] = useState<HomeData>(EMPTY);
   const [time, setTime] = useState(new Date());
@@ -275,82 +161,75 @@ export default function Dashboard() {
   const rise = (i: number) => ({ animationDelay: `${i * 60}ms` });
 
   return (
-    <>
-      <div className="relative z-10 w-full mx-auto pb-16">
+    <div className="relative z-10 w-full mx-auto pb-16">
 
-        {/* ── Header ─────────────────────────────────────── */}
-        <div className="hq-rise pt-4 pb-8 flex flex-wrap items-end justify-between gap-6" style={rise(0)}>
-          <div>
-            <div className="eyebrow mb-2.5">{greeting()}</div>
-            <h1 className="text-[40px] font-semibold tracking-[-0.025em] leading-none text-[var(--hq-text)]">
-              {process.env.NEXT_PUBLIC_OWNER_NAME || "Hermy HQ"}
-            </h1>
-            <p className="num text-[var(--hq-text-ghost)] text-[12.5px] mt-3">
-              {time.toLocaleDateString("pt-BR", { weekday: "long", month: "long", day: "numeric" })}
-              {"  ·  "}
-              {time.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false })}
-            </p>
-          </div>
-          <div className="flex flex-col items-end gap-4">
-            <div className="flex items-center gap-2.5">
-              <div className="flex items-center gap-1.5 rounded-full border border-[var(--hq-hairline)] bg-white/[0.02] px-2.5 py-1">
-                <span className="relative flex w-1.5 h-1.5">
-                  <span className="absolute inline-flex h-full w-full rounded-full animate-ping" style={{ background: "color-mix(in srgb, var(--up) 60%, transparent)" }} />
-                  <span className="relative inline-flex w-1.5 h-1.5 rounded-full" style={{ background: "var(--up)" }} />
-                </span>
-                <span className="eyebrow !text-[9.5px] !text-[var(--hq-text-faint)]">Online</span>
-              </div>
-            </div>
-            {score && <ScoreGauge score={score} />}
-          </div>
+      {/* ── Header ─────────────────────────────────────── */}
+      <div className="hq-rise pt-4 pb-8 flex flex-wrap items-end justify-between gap-6" style={rise(0)}>
+        <div>
+          <div className="eyebrow mb-2.5">{greeting()}</div>
+          <h1 className="text-[40px] font-semibold tracking-[-0.025em] leading-none text-[var(--hq-text)]">
+            {process.env.NEXT_PUBLIC_OWNER_NAME || "Hermy HQ"}
+          </h1>
+          <p className="num text-[var(--hq-text-ghost)] text-[12.5px] mt-3">
+            {time.toLocaleDateString("pt-BR", { weekday: "long", month: "long", day: "numeric" })}
+            {"  ·  "}
+            {time.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false })}
+          </p>
         </div>
-
-        {/* ── Métricas Comerciais (Topo) ─────────────────── */}
-        <div className="mb-8">
-          <SectionLabel>Métricas Comerciais</SectionLabel>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-            <div className="hq-rise lg:col-span-1" style={rise(1)}>
-              <ProposalsCard />
-            </div>
-            <div className="hq-rise lg:col-span-2" style={rise(2)}>
-              <MondayCards />
+        <div className="flex flex-col items-end gap-4">
+          <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-1.5 rounded-full border border-[var(--hq-hairline)] bg-white/[0.02] px-2.5 py-1">
+              <span className="relative flex w-1.5 h-1.5">
+                <span className="absolute inline-flex h-full w-full rounded-full animate-ping" style={{ background: "color-mix(in srgb, var(--up) 60%, transparent)" }} />
+                <span className="relative inline-flex w-1.5 h-1.5 rounded-full" style={{ background: "var(--up)" }} />
+              </span>
+              <span className="eyebrow !text-[9.5px] !text-[var(--hq-text-faint)]">Online</span>
             </div>
           </div>
-          
-          {/* Todos os Gráficos do Monday */}
-          <div className="hq-rise" style={rise(3)}>
-            <MondayCharts />
-          </div>
-        </div>
-
-        {/* ── Brief + Approval inbox (side-by-side on wide) ─ */}
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 items-start">
-          <div className="xl:col-span-2 hq-rise" style={rise(4)}>
-            <HermesBriefing />
-          </div>
-          <div className="xl:col-span-1 hq-rise" style={rise(5)}>
-            <ApprovalInbox compact />
-          </div>
-        </div>
-
-        {/* ── Operação: Quadro Kanban + Ideias ────────────── */}
-        <div className="mt-10">
-          <SectionLabel>Operação & Execução</SectionLabel>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            <div className="hq-rise" style={rise(6)}>
-              <HermesKanbanPanel kanban={data.hermesKanban} />
-            </div>
-            <div className="hq-rise" style={rise(7)}>
-              <IdeasPanel buildIdeas={data.topBuildIdeas} />
-            </div>
-          </div>
-        </div>
-
-        {/* ── Status dos Agentes e Processos ──────────────── */}
-        <div className="mt-14">
-          <AgentsStrip processes={data.processes} />
+          {score && <ScoreGauge score={score} />}
         </div>
       </div>
-    </>
+
+      {/* ── Métricas Comerciais (Topo) ─────────────────── */}
+      <div className="mb-8">
+        <SectionLabel>Métricas Comerciais</SectionLabel>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          <div className="hq-rise lg:col-span-1" style={rise(1)}>
+            <ProposalsCard />
+          </div>
+          <div className="hq-rise lg:col-span-2" style={rise(2)}>
+            <MondayCards />
+          </div>
+        </div>
+        
+        {/* Gráficos do Monday */}
+        <div className="hq-rise" style={rise(3)}>
+          <MondayCharts />
+        </div>
+      </div>
+
+      {/* ── Brief + Approval inbox ─────────────────────── */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 items-start">
+        <div className="xl:col-span-2 hq-rise" style={rise(4)}>
+          <HermesBriefing />
+        </div>
+        <div className="xl:col-span-1 hq-rise" style={rise(5)}>
+          <ApprovalInbox compact />
+        </div>
+      </div>
+
+      {/* ── Operação & Execução (Tarefas em Aberto Monday) */}
+      <div className="mt-10">
+        <SectionLabel>Operação & Execução</SectionLabel>
+        <div className="hq-rise" style={rise(6)}>
+          <MondayTasksTable />
+        </div>
+      </div>
+
+      {/* ── Status dos Agentes e Processos ──────────────── */}
+      <div className="mt-14">
+        <AgentsStrip processes={data.processes} />
+      </div>
+    </div>
   );
 }
