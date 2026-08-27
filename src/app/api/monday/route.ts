@@ -15,7 +15,6 @@ export async function GET() {
     return NextResponse.json({ error: 'Token não configurado' }, { status: 500 });
   }
 
-  // Busca os itens, grupos e valores de colunas dos quadros selecionados
   const query = `
     query {
       boards(ids: [${Object.values(BOARD_IDS).join(',')}]) {
@@ -54,10 +53,9 @@ export async function GET() {
 
     const data = await res.json();
     const boards = data?.data?.boards || [];
-
     const getBoard = (id: string) => boards.find((b: any) => b.id === id);
 
-    // Contagens básicas para os cards numéricos
+    // 1. Métricas principais (Cards)
     const metrics = {
       projetosJornada: getBoard(BOARD_IDS.jornada)?.items_page?.items?.length ?? 0,
       contratos: getBoard(BOARD_IDS.contratos)?.items_page?.items?.length ?? 0,
@@ -65,40 +63,60 @@ export async function GET() {
       standBy: getBoard(BOARD_IDS.standBy)?.items_page?.items?.length ?? 0,
     };
 
-    // Agrupamento para Gráfico 1: Pipeline Comercial por Fase / Grupo
-    const comercialBoard = getBoard(BOARD_IDS.comercial);
-    const comercialItems = comercialBoard?.items_page?.items || [];
-    const comercialFasesMap: Record<string, number> = {};
+    // 2. Pipeline Comercial por Fase
+    const comercialItems = getBoard(BOARD_IDS.comercial)?.items_page?.items || [];
+    const comercialMap: Record<string, number> = {};
+    const responsaveisMap: Record<string, number> = {};
 
     comercialItems.forEach((item: any) => {
-      const grupo = item.group?.title || 'Outros';
-      comercialFasesMap[grupo] = (comercialFasesMap[grupo] || 0) + 1;
+      const grupo = item.group?.title?.trim() || 'Outros';
+      comercialMap[grupo] = (comercialMap[grupo] || 0) + 1;
+
+      // Extrai responsável da coluna tipo people/person
+      const personCol = item.column_values?.find((c: any) => c.type === 'people' || c.type === 'multiple-person' || c.id?.toLowerCase().includes('person') || c.id?.toLowerCase().includes('responsavel'));
+      const respName = personCol?.text?.trim() || 'Sem responsável';
+      responsaveisMap[respName] = (responsaveisMap[respName] || 0) + 1;
     });
 
-    const pipelineComercial = Object.entries(comercialFasesMap).map(([name, value]) => ({
-      name,
-      value,
-    }));
+    const pipelineComercial = Object.entries(comercialMap).map(([name, value]) => ({ name, value }));
+    const cargaResponsavel = Object.entries(responsaveisMap)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
 
-    // Agrupamento para Gráfico 2: Projetos por Fase — Jornada
-    const jornadaBoard = getBoard(BOARD_IDS.jornada);
-    const jornadaItems = jornadaBoard?.items_page?.items || [];
-    const jornadaFasesMap: Record<string, number> = {};
-
+    // 3. Projetos por Fase — Jornada
+    const jornadaItems = getBoard(BOARD_IDS.jornada)?.items_page?.items || [];
+    const jornadaMap: Record<string, number> = {};
     jornadaItems.forEach((item: any) => {
-      const grupo = item.group?.title || 'Outros';
-      jornadaFasesMap[grupo] = (jornadaFasesMap[grupo] || 0) + 1;
+      const grupo = item.group?.title?.trim() || 'Outros';
+      jornadaMap[grupo] = (jornadaMap[grupo] || 0) + 1;
     });
+    const projetosJornadaFases = Object.entries(jornadaMap).map(([name, value]) => ({ name, value }));
 
-    const projetosJornadaFases = Object.entries(jornadaFasesMap).map(([name, value]) => ({
-      name,
-      value,
-    }));
+    // 4. Contratos por Status
+    const contratosItems = getBoard(BOARD_IDS.contratos)?.items_page?.items || [];
+    const contratosMap: Record<string, number> = {};
+    contratosItems.forEach((item: any) => {
+      const grupo = item.group?.title?.trim() || 'Ativos';
+      contratosMap[grupo] = (contratosMap[grupo] || 0) + 1;
+    });
+    const contratosStatus = Object.entries(contratosMap).map(([name, value]) => ({ name, value }));
+
+    // 5. Propostas — Progresso
+    const propostasItems = getBoard(BOARD_IDS.propostas)?.items_page?.items || [];
+    const propostasMap: Record<string, number> = {};
+    propostasItems.forEach((item: any) => {
+      const grupo = item.group?.title?.trim() || 'Em elaboração';
+      propostasMap[grupo] = (propostasMap[grupo] || 0) + 1;
+    });
+    const propostasProgresso = Object.entries(propostasMap).map(([name, value]) => ({ name, value }));
 
     return NextResponse.json({
       metrics,
       pipelineComercial,
       projetosJornadaFases,
+      contratosStatus,
+      cargaResponsavel,
+      propostasProgresso,
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
