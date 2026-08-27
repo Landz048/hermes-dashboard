@@ -25,6 +25,16 @@ const PALETTE = [
   "#ef4444", // Vermelho
 ];
 
+// Paleta oficial correspondente às fases de Propostas no Monday
+const PROPOSTAS_COLORS: Record<string, string> = {
+  "Enviada": "#3b82f6",        // Azul
+  "Em elaboração": "#f97316",  // Laranja
+  "Pendente": "#eab308",       // Amarelo
+  "Em revisão": "#0284c7",     // Petróleo
+  "Cancelada": "#52525b",      // Grafite
+  "Sem status": "#a1a1aa",     // Cinza Claro (empty)
+};
+
 const TOOLTIP_STYLES = {
   contentStyle: {
     backgroundColor: "#18181b",
@@ -78,20 +88,26 @@ export default function MondayCharts() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/monday")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((res) => {
-        if (res && !res.error) {
-          setData({
-            pipelineComercial: res.pipelineComercial || [],
-            projetosJornadaFases: res.projetosJornadaFases || [],
-            contratosStatus: res.contratosStatus || [],
-            cargaResponsavel: res.cargaResponsavel || [],
-            propostasProgresso: res.propostasProgresso || [],
-          });
-        }
-      })
-      .finally(() => setLoading(false));
+    const fetchData = () => {
+      fetch("/api/monday")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((res) => {
+          if (res && !res.error) {
+            setData({
+              pipelineComercial: res.pipelineComercial || [],
+              projetosJornadaFases: res.projetosJornadaFases || [],
+              contratosStatus: res.contratosStatus || [],
+              cargaResponsavel: res.cargaResponsavel || [],
+              propostasProgresso: res.propostasProgresso || [],
+            });
+          }
+        })
+        .finally(() => setLoading(false));
+    };
+
+    fetchData();
+    const interval = setInterval(fetchData, 60_000); // ⏱️ Atualiza automaticamente a cada 60s
+    return () => clearInterval(interval);
   }, []);
 
   const totalPropostas = data.propostasProgresso.reduce((acc, it) => acc + it.value, 0);
@@ -273,32 +289,46 @@ export default function MondayCharts() {
           <div className="py-6 text-center text-[12px] text-[#a1a1aa]">Carregando...</div>
         ) : (
           <div className="space-y-4">
-            <div className="h-6 w-full rounded-lg bg-white/[0.04] overflow-hidden flex">
+            {/* Barra Segmentada de Progresso com Paleta Oficial Monday */}
+            <div className="h-7 w-full rounded-lg bg-white/[0.04] overflow-hidden flex border border-white/5">
               {data.propostasProgresso.map((item, idx) => {
                 const pct = totalPropostas > 0 ? (item.value / totalPropostas) * 100 : 0;
                 if (pct === 0) return null;
+                const barColor = PROPOSTAS_COLORS[item.name] || PALETTE[idx % PALETTE.length];
                 return (
                   <div
                     key={idx}
-                    title={`${item.name}: ${item.value} (${pct.toFixed(1)}%)`}
+                    title={`${pct.toFixed(1)}% ${item.name} (${item.value})`}
                     style={{
                       width: `${pct}%`,
-                      background: PALETTE[idx % PALETTE.length],
+                      background: barColor,
                     }}
-                    className="h-full transition-all hover:opacity-90 cursor-pointer"
-                  />
+                    className="h-full transition-all hover:opacity-90 cursor-pointer flex items-center justify-center relative group"
+                  >
+                    {pct >= 12 && (
+                      <span className="text-[10px] font-semibold text-white/95 truncate px-1 select-none">
+                        {pct.toFixed(1)}%
+                      </span>
+                    )}
+                  </div>
                 );
               })}
             </div>
 
-            <div className="flex flex-wrap items-center gap-4">
-              {data.propostasProgresso.map((item, idx) => (
-                <div key={idx} className="flex items-center gap-1.5 text-[11px]">
-                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: PALETTE[idx % PALETTE.length] }} />
-                  <span className="text-[#d4d4d8] font-medium">{item.name}:</span>
-                  <span className="num font-semibold text-white">{item.value}</span>
-                </div>
-              ))}
+            {/* Legenda com Cores Oficiais e % */}
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+              {data.propostasProgresso.map((item, idx) => {
+                const pct = totalPropostas > 0 ? ((item.value / totalPropostas) * 100).toFixed(1) : "0";
+                const dotColor = PROPOSTAS_COLORS[item.name] || PALETTE[idx % PALETTE.length];
+                return (
+                  <div key={idx} className="flex items-center gap-1.5 text-[11px]">
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: dotColor }} />
+                    <span className="text-[#d4d4d8] font-medium">{item.name}:</span>
+                    <span className="num font-semibold text-white">{item.value}</span>
+                    <span className="text-[#71717a] text-[10px]">({pct}%)</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

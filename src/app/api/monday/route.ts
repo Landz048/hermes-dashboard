@@ -13,7 +13,6 @@ const BOARD_IDS = {
 
 const TEAM_ORDER = ['John', 'Felipe', 'Natália', 'André', 'Clara', 'Diogo'];
 
-// Lista estrita dos 6 status oficiais de Contratos no Monday
 const VALID_CONTRATOS_STATUS: Record<string, string> = {
   'assinado': 'Assinado',
   'ag. assinatura': 'Ag. Assinatura',
@@ -26,7 +25,6 @@ const VALID_CONTRATOS_STATUS: Record<string, string> = {
   'em revisão': 'Em Revisão',
 };
 
-// Lista estrita de fases válidas do Pipeline Comercial
 const VALID_COMERCIAL_STAGES = [
   'Prospecção',
   'Proposta',
@@ -36,6 +34,15 @@ const VALID_COMERCIAL_STAGES = [
   'Aceito',
   'Recusado',
   'No Go',
+];
+
+const ORDERED_PROPOSTAS_STATUS = [
+  'Enviada',
+  'Em elaboração',
+  'Pendente',
+  'Em revisão',
+  'Cancelada',
+  'Sem status',
 ];
 
 function normalizeStr(str: string) {
@@ -132,7 +139,7 @@ export async function GET() {
     };
 
     // =========================================================================
-    // 2. PIPELINE COMERCIAL POR FASE (Apenas status oficiais)
+    // 2. PIPELINE COMERCIAL POR FASE
     // =========================================================================
     const comercialBoard = getBoard(BOARD_IDS.comercial);
     const comercialItems = comercialBoard?.items_page?.items || [];
@@ -171,14 +178,13 @@ export async function GET() {
     const projetosJornadaFases = Object.entries(jornadaMap).map(([name, value]) => ({ name, value }));
 
     // =========================================================================
-    // 4. CONTRATOS POR STATUS (Filtro 100% estrito — Elimina nomes de pessoas/grupos)
+    // 4. CONTRATOS POR STATUS
     // =========================================================================
     const contratosBoard = getBoard(BOARD_IDS.contratos);
     const contratosItems = contratosBoard?.items_page?.items || [];
     const contratosMap: Record<string, number> = {};
 
     contratosItems.forEach((item: any) => {
-      // Procura a coluna cujo texto seja EXATAMENTE um dos status contratuais
       const statusCol = item.column_values?.find((c: any) => {
         if (!c.text) return false;
         const norm = normalizeStr(c.text);
@@ -233,23 +239,42 @@ export async function GET() {
     }));
 
     // =========================================================================
-    // 6. PROPOSTAS — PROGRESSO
+    // 6. PROPOSTAS — PROGRESSO (18 Propostas Totais - Mapeamento Fiel ao Monday)
     // =========================================================================
     const propostasBoard = getBoard(BOARD_IDS.propostas);
     const propostasItems = propostasBoard?.items_page?.items || [];
-    const propostasMap: Record<string, number> = {};
+    const propostasMap: Record<string, number> = {
+      'Enviada': 0,
+      'Em elaboração': 0,
+      'Pendente': 0,
+      'Em revisão': 0,
+      'Cancelada': 0,
+      'Sem status': 0,
+    };
 
     propostasItems.forEach((item: any) => {
       const statusCol = item.column_values?.find(
         (c: any) => (c.type === 'status' || c.type === 'color' || c.id === 'status' || c.id === 'progresso') && c.text
       );
-      if (statusCol?.text && statusCol.text.trim()) {
-        const status = statusCol.text.trim();
-        propostasMap[status] = (propostasMap[status] || 0) + 1;
+      
+      const raw = statusCol?.text?.trim();
+      if (!raw) {
+        propostasMap['Sem status'] = (propostasMap['Sem status'] || 0) + 1;
+      } else {
+        const norm = normalizeStr(raw);
+        if (norm.includes('enviad')) propostasMap['Enviada']++;
+        else if (norm.includes('elabora')) propostasMap['Em elaboração']++;
+        else if (norm.includes('pendent')) propostasMap['Pendente']++;
+        else if (norm.includes('revis')) propostasMap['Em revisão']++;
+        else if (norm.includes('cancel')) propostasMap['Cancelada']++;
+        else propostasMap['Sem status']++;
       }
     });
 
-    const propostasProgresso = Object.entries(propostasMap).map(([name, value]) => ({ name, value }));
+    // Retorna ordenado conforme o Monday (Enviada -> Em elaboração -> Pendente -> Em revisão -> Cancelada -> Sem status)
+    const propostasProgresso = ORDERED_PROPOSTAS_STATUS
+      .map((name) => ({ name, value: propostasMap[name] || 0 }))
+      .filter((item) => item.value > 0);
 
     // =========================================================================
     // 7. TAREFAS EM ABERTO
