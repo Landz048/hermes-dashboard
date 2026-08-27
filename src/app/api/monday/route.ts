@@ -96,7 +96,9 @@ export async function GET() {
 
     const getBoard = (id: string) => boards.find((b: any) => b.id === id);
 
-    // 1. CARDS DO TOPO (Itens Principais = 10, 42, 18, 9)
+    // =========================================================================
+    // 1. CARDS DO TOPO (10, 42, 18, 9)
+    // =========================================================================
     const metrics = {
       projetosJornada: getBoard(BOARD_IDS.jornada)?.items_page?.items?.length ?? 0,
       contratos: getBoard(BOARD_IDS.contratos)?.items_page?.items?.length ?? 0,
@@ -104,7 +106,9 @@ export async function GET() {
       standBy: getBoard(BOARD_IDS.standBy)?.items_page?.items?.length ?? 0,
     };
 
-    // 2. Pipeline Comercial por Fase
+    // =========================================================================
+    // 2. PIPELINE COMERCIAL POR FASE (11 Prospecção, 7 Stand By, etc.)
+    // =========================================================================
     const comercialBoard = getBoard(BOARD_IDS.comercial);
     const comercialItems = comercialBoard?.items_page?.items || [];
     const comercialMap: Record<string, number> = {};
@@ -119,7 +123,9 @@ export async function GET() {
 
     const pipelineComercial = Object.entries(comercialMap).map(([name, value]) => ({ name, value }));
 
-    // 3. Projetos por Fase — Jornada
+    // =========================================================================
+    // 3. PROJETOS POR FASE — JORNADA
+    // =========================================================================
     const jornadaBoard = getBoard(BOARD_IDS.jornada);
     const jornadaItems = jornadaBoard?.items_page?.items || [];
     const jornadaMap: Record<string, number> = {};
@@ -134,7 +140,9 @@ export async function GET() {
 
     const projetosJornadaFases = Object.entries(jornadaMap).map(([name, value]) => ({ name, value }));
 
-    // 4. Contratos por Status
+    // =========================================================================
+    // 4. CONTRATOS POR STATUS (Filtro exclusivo na coluna de status real)
+    // =========================================================================
     const contratosBoard = getBoard(BOARD_IDS.contratos);
     const contratosItems = contratosBoard?.items_page?.items || [];
     const contratosMap: Record<string, number> = {};
@@ -143,22 +151,48 @@ export async function GET() {
       const statusCol = item.column_values?.find(
         (c: any) => (c.type === 'status' || c.type === 'color' || c.id === 'status') && c.text
       );
-      const status = statusCol?.text?.trim() || item.group?.title?.trim() || 'Ativos';
-      contratosMap[status] = (contratosMap[status] || 0) + 1;
+      
+      if (statusCol?.text && statusCol.text.trim()) {
+        const status = statusCol.text.trim();
+        contratosMap[status] = (contratosMap[status] || 0) + 1;
+      }
     });
 
     const contratosStatus = Object.entries(contratosMap).map(([name, value]) => ({ name, value }));
 
-    // 5. Carga por Responsável — Comercial
+    // =========================================================================
+    // 5. CARGA POR RESPONSÁVEL — COMERCIAL (Varredura robusta por texto/JSON)
+    // =========================================================================
     const countsMap: Record<string, number> = {};
     TEAM_ORDER.forEach((m) => { countsMap[m] = 0; });
 
     comercialItems.forEach((item: any) => {
       item.column_values?.forEach((col: any) => {
-        if (col.text && (col.type === 'people' || col.type === 'multiple-person' || col.id?.includes('person') || col.id?.includes('responsavel'))) {
-          const normText = normalizeStr(col.text);
+        let contentToInspect = '';
+
+        if (col.text) {
+          contentToInspect += ` ${col.text}`;
+        }
+
+        // Caso a coluna armazene os IDs dos usuários no campo value
+        if (col.value) {
+          try {
+            const parsed = JSON.parse(col.value);
+            if (parsed.personsAndTeams) {
+              parsed.personsAndTeams.forEach((p: any) => {
+                const uName = usersMap.get(String(p.id));
+                if (uName) contentToInspect += ` ${uName}`;
+              });
+            }
+          } catch {
+            // Se não for JSON parseável, segue normalmente
+          }
+        }
+
+        if (contentToInspect) {
+          const normContent = normalizeStr(contentToInspect);
           TEAM_ORDER.forEach((member) => {
-            if (normText.includes(normalizeStr(member))) {
+            if (normContent.includes(normalizeStr(member))) {
               countsMap[member] = (countsMap[member] || 0) + 1;
             }
           });
@@ -171,7 +205,9 @@ export async function GET() {
       value: countsMap[name] || 0,
     }));
 
-    // 6. Propostas — Progresso
+    // =========================================================================
+    // 6. PROPOSTAS — PROGRESSO
+    // =========================================================================
     const propostasBoard = getBoard(BOARD_IDS.propostas);
     const propostasItems = propostasBoard?.items_page?.items || [];
     const propostasMap: Record<string, number> = {};
@@ -186,7 +222,9 @@ export async function GET() {
 
     const propostasProgresso = Object.entries(propostasMap).map(([name, value]) => ({ name, value }));
 
-    // 7. Tarefas em Aberto
+    // =========================================================================
+    // 7. TAREFAS EM ABERTO
+    // =========================================================================
     const targetBoards = [
       { key: 'standBy', name: 'Stand By' },
       { key: 'comercial', name: 'Comercial' },
