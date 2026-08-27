@@ -25,6 +25,27 @@ const PALETTE = [
   "#ef4444", // Vermelho
 ];
 
+// Estilos globais e contrastantes para todos os Tooltips
+const TOOLTIP_STYLES = {
+  contentStyle: {
+    backgroundColor: "#18181b",
+    border: "1px solid var(--hq-hairline)",
+    borderRadius: "8px",
+    padding: "8px 12px",
+    boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.5)",
+  },
+  itemStyle: {
+    color: "#ffffff",
+    fontSize: "12px",
+    fontWeight: 500,
+  },
+  labelStyle: {
+    color: "var(--hq-text-dim)",
+    fontSize: "11px",
+    marginBottom: "4px",
+  },
+};
+
 function CustomAxisTick({ x, y, payload }: any) {
   const words = (payload.value || "").split(" ");
   const line1 = words.slice(0, Math.ceil(words.length / 2)).join(" ");
@@ -93,9 +114,7 @@ export default function MondayCharts() {
               <div className="w-1/2 h-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Tooltip
-                      contentStyle={{ background: "#18181b", border: "1px solid var(--hq-hairline)", borderRadius: "8px", fontSize: "12px" }}
-                    />
+                    <Tooltip {...TOOLTIP_STYLES} />
                     <Pie data={data.pipelineComercial} innerRadius={45} outerRadius={75} paddingAngle={3} dataKey="value">
                       {data.pipelineComercial.map((_, i) => (
                         <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
@@ -134,9 +153,7 @@ export default function MondayCharts() {
                 <BarChart data={data.projetosJornadaFases} margin={{ top: 15, right: 10, left: -25, bottom: 45 }}>
                   <XAxis dataKey="name" tick={<CustomAxisTick />} interval={0} tickLine={false} axisLine={{ stroke: "var(--hq-hairline)" }} />
                   <YAxis stroke="var(--hq-text-ghost)" fontSize={10} tickLine={false} axisLine={false} />
-                  <Tooltip
-                    contentStyle={{ background: "#18181b", border: "1px solid var(--hq-hairline)", borderRadius: "8px", fontSize: "12px" }}
-                  />
+                  <Tooltip {...TOOLTIP_STYLES} />
                   <Bar dataKey="value" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -161,9 +178,7 @@ export default function MondayCharts() {
               <div className="w-1/2 h-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Tooltip
-                      contentStyle={{ background: "#18181b", border: "1px solid var(--hq-hairline)", borderRadius: "8px", fontSize: "12px" }}
-                    />
+                    <Tooltip {...TOOLTIP_STYLES} />
                     <Pie data={data.contratosStatus} innerRadius={45} outerRadius={75} paddingAngle={3} dataKey="value">
                       {data.contratosStatus.map((_, i) => (
                         <Cell key={i} fill={PALETTE[(i + 2) % PALETTE.length]} />
@@ -206,9 +221,7 @@ export default function MondayCharts() {
                 >
                   <XAxis type="number" allowDecimals={false} stroke="var(--hq-text-ghost)" fontSize={10} tickLine={false} axisLine={false} />
                   <YAxis type="category" dataKey="name" stroke="var(--hq-text-ghost)" fontSize={11} tickLine={false} axisLine={false} width={65} />
-                  <Tooltip
-                    contentStyle={{ background: "#18181b", border: "1px solid var(--hq-hairline)", borderRadius: "8px", fontSize: "12px" }}
-                  />
+                  <Tooltip {...TOOLTIP_STYLES} />
                   <Bar dataKey="value" fill="#8b5cf6" radius={[0, 4, 4, 0]} barSize={18} />
                 </BarChart>
               </ResponsiveContainer>
