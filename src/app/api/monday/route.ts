@@ -13,7 +13,20 @@ const BOARD_IDS = {
 
 const TEAM_ORDER = ['John', 'Felipe', 'Natália', 'André', 'Clara', 'Diogo'];
 
-// Lista das fases oficiais do Pipeline Comercial no Monday
+// Lista estrita dos 6 status oficiais de Contratos no Monday
+const VALID_CONTRATOS_STATUS: Record<string, string> = {
+  'assinado': 'Assinado',
+  'ag. assinatura': 'Ag. Assinatura',
+  'ag assinatura': 'Ag. Assinatura',
+  'em elaboracao': 'Em elaboração',
+  'em elaboração': 'Em elaboração',
+  'pendente': 'Pendente',
+  'suspenso': 'Suspenso',
+  'em revisao': 'Em Revisão',
+  'em revisão': 'Em Revisão',
+};
+
+// Lista estrita de fases válidas do Pipeline Comercial
 const VALID_COMERCIAL_STAGES = [
   'Prospecção',
   'Proposta',
@@ -45,7 +58,7 @@ export async function GET() {
       boards(ids: [${Object.values(BOARD_IDS).join(',')}]) {
         id
         name
-        items_page(limit: 100) {
+        items_page(limit: 250) {
           items {
             id
             name
@@ -119,22 +132,22 @@ export async function GET() {
     };
 
     // =========================================================================
-    // 2. PIPELINE COMERCIAL POR FASE (Apenas status válidos, sem grupos)
+    // 2. PIPELINE COMERCIAL POR FASE (Apenas status oficiais)
     // =========================================================================
     const comercialBoard = getBoard(BOARD_IDS.comercial);
     const comercialItems = comercialBoard?.items_page?.items || [];
     const comercialMap: Record<string, number> = {};
 
     comercialItems.forEach((item: any) => {
-      const statusCol = item.column_values?.find(
-        (c: any) => (c.type === 'status' || c.type === 'color' || c.id === 'status' || c.id === 'fase') && c.text
-      );
-      
-      const faseText = statusCol?.text?.trim();
-      if (faseText && VALID_COMERCIAL_STAGES.some((s) => normalizeStr(s) === normalizeStr(faseText))) {
-        // Normaliza Stand by para 'Stand By'
-        const normalizedLabel = normalizeStr(faseText) === 'stand by' ? 'Stand By' : faseText;
-        comercialMap[normalizedLabel] = (comercialMap[normalizedLabel] || 0) + 1;
+      const statusCol = item.column_values?.find((c: any) => {
+        if (!c.text) return false;
+        return VALID_COMERCIAL_STAGES.some((s) => normalizeStr(s) === normalizeStr(c.text));
+      });
+
+      if (statusCol?.text) {
+        const raw = statusCol.text.trim();
+        const label = normalizeStr(raw) === 'stand by' ? 'Stand By' : raw;
+        comercialMap[label] = (comercialMap[label] || 0) + 1;
       }
     });
 
@@ -158,20 +171,25 @@ export async function GET() {
     const projetosJornadaFases = Object.entries(jornadaMap).map(([name, value]) => ({ name, value }));
 
     // =========================================================================
-    // 4. CONTRATOS POR STATUS (Apenas coluna de status real)
+    // 4. CONTRATOS POR STATUS (Filtro 100% estrito — Elimina nomes de pessoas/grupos)
     // =========================================================================
     const contratosBoard = getBoard(BOARD_IDS.contratos);
     const contratosItems = contratosBoard?.items_page?.items || [];
     const contratosMap: Record<string, number> = {};
 
     contratosItems.forEach((item: any) => {
-      const statusCol = item.column_values?.find(
-        (c: any) => (c.type === 'status' || c.type === 'color' || c.id === 'status') && c.text
-      );
-      
-      if (statusCol?.text && statusCol.text.trim()) {
-        const status = statusCol.text.trim();
-        contratosMap[status] = (contratosMap[status] || 0) + 1;
+      // Procura a coluna cujo texto seja EXATAMENTE um dos status contratuais
+      const statusCol = item.column_values?.find((c: any) => {
+        if (!c.text) return false;
+        const norm = normalizeStr(c.text);
+        return Object.prototype.hasOwnProperty.call(VALID_CONTRATOS_STATUS, norm);
+      });
+
+      if (statusCol?.text) {
+        const officialName = VALID_CONTRATOS_STATUS[normalizeStr(statusCol.text)];
+        if (officialName) {
+          contratosMap[officialName] = (contratosMap[officialName] || 0) + 1;
+        }
       }
     });
 
@@ -184,32 +202,27 @@ export async function GET() {
     TEAM_ORDER.forEach((m) => { countsMap[m] = 0; });
 
     comercialItems.forEach((item: any) => {
+      let combined = `${item.name || ''} ${item.group?.title || ''}`;
+
       item.column_values?.forEach((col: any) => {
-        let contentToInspect = '';
-
-        if (col.text) {
-          contentToInspect += ` ${col.text}`;
-        }
-
+        if (col.text) combined += ` ${col.text}`;
         if (col.value) {
           try {
             const parsed = JSON.parse(col.value);
             if (parsed.personsAndTeams) {
               parsed.personsAndTeams.forEach((p: any) => {
                 const uName = usersMap.get(String(p.id));
-                if (uName) contentToInspect += ` ${uName}`;
+                if (uName) combined += ` ${uName}`;
               });
             }
           } catch {}
         }
+      });
 
-        if (contentToInspect) {
-          const normContent = normalizeStr(contentToInspect);
-          TEAM_ORDER.forEach((member) => {
-            if (normContent.includes(normalizeStr(member))) {
-              countsMap[member] = (countsMap[member] || 0) + 1;
-            }
-          });
+      const normCombined = normalizeStr(combined);
+      TEAM_ORDER.forEach((member) => {
+        if (normCombined.includes(normalizeStr(member))) {
+          countsMap[member] = (countsMap[member] || 0) + 1;
         }
       });
     });
