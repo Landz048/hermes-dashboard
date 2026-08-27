@@ -25,11 +25,10 @@ const PALETTE = [
   "#ef4444", // Vermelho
 ];
 
-// Estilos globais e contrastantes para todos os Tooltips
 const TOOLTIP_STYLES = {
   contentStyle: {
     backgroundColor: "#18181b",
-    border: "1px solid var(--hq-hairline)",
+    border: "1px solid rgba(255, 255, 255, 0.15)",
     borderRadius: "8px",
     padding: "8px 12px",
     boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.5)",
@@ -40,12 +39,13 @@ const TOOLTIP_STYLES = {
     fontWeight: 500,
   },
   labelStyle: {
-    color: "var(--hq-text-dim)",
+    color: "#d4d4d8",
     fontSize: "11px",
     marginBottom: "4px",
   },
 };
 
+// Renderizador customizado do Eixo X com quebra de linha e alto contraste
 function CustomAxisTick({ x, y, payload }: any) {
   const words = (payload.value || "").split(" ");
   const line1 = words.slice(0, Math.ceil(words.length / 2)).join(" ");
@@ -53,7 +53,7 @@ function CustomAxisTick({ x, y, payload }: any) {
 
   return (
     <g transform={`translate(${x},${y})`}>
-      <text x={0} y={0} dy={12} textAnchor="middle" fill="var(--hq-text-ghost)" fontSize={10}>
+      <text x={0} y={0} dy={12} textAnchor="middle" fill="#d4d4d8" fontSize={11} fontWeight={500}>
         <tspan x={0} dy="0.71em">{line1}</tspan>
         {line2 && <tspan x={0} dy="1.15em">{line2}</tspan>}
       </text>
@@ -100,7 +100,7 @@ export default function MondayCharts() {
     <div className="space-y-5 mt-5">
       {/* ── LINHA 1: Pipeline Comercial & Projetos por Fase ───────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* 1. Pipeline Comercial por Fase (Donut) */}
+        {/* 1. Pipeline Comercial por Fase */}
         <div className="panel flex flex-col p-6 h-[340px]">
           <div className="flex items-center gap-2 mb-2">
             <PieIcon className="w-4 h-4 text-amber-400" />
@@ -108,7 +108,7 @@ export default function MondayCharts() {
           </div>
 
           {loading ? (
-            <div className="flex-1 flex items-center justify-center text-[12px] text-[var(--hq-text-ghost)]">Carregando...</div>
+            <div className="flex-1 flex items-center justify-center text-[12px] text-[#a1a1aa]">Carregando...</div>
           ) : (
             <div className="flex-1 w-full flex items-center">
               <div className="w-1/2 h-full">
@@ -128,9 +128,9 @@ export default function MondayCharts() {
                   <div key={idx} className="flex items-center justify-between text-[11px]">
                     <div className="flex items-center gap-2 truncate">
                       <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: PALETTE[idx % PALETTE.length] }} />
-                      <span className="text-[var(--hq-text-dim)] truncate">{entry.name}</span>
+                      <span className="text-[#d4d4d8] font-medium truncate">{entry.name}</span>
                     </div>
-                    <span className="num font-semibold text-[var(--hq-text)] ml-2">{entry.value}</span>
+                    <span className="num font-semibold text-white ml-2">{entry.value}</span>
                   </div>
                 ))}
               </div>
@@ -146,13 +146,25 @@ export default function MondayCharts() {
           </div>
 
           {loading ? (
-            <div className="flex-1 flex items-center justify-center text-[12px] text-[var(--hq-text-ghost)]">Carregando...</div>
+            <div className="flex-1 flex items-center justify-center text-[12px] text-[#a1a1aa]">Carregando...</div>
           ) : (
             <div className="flex-1 w-full mt-2">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data.projetosJornadaFases} margin={{ top: 15, right: 10, left: -25, bottom: 45 }}>
-                  <XAxis dataKey="name" tick={<CustomAxisTick />} interval={0} tickLine={false} axisLine={{ stroke: "var(--hq-hairline)" }} />
-                  <YAxis stroke="var(--hq-text-ghost)" fontSize={10} tickLine={false} axisLine={false} />
+                <BarChart data={data.projetosJornadaFases} margin={{ top: 15, right: 10, left: -20, bottom: 45 }}>
+                  <XAxis
+                    dataKey="name"
+                    tick={<CustomAxisTick />}
+                    interval={0}
+                    tickLine={{ stroke: "#71717a" }}
+                    axisLine={{ stroke: "#52525b" }}
+                  />
+                  <YAxis
+                    stroke="#a1a1aa"
+                    fontSize={11}
+                    fontWeight={500}
+                    tickLine={{ stroke: "#71717a" }}
+                    axisLine={{ stroke: "#52525b" }}
+                  />
                   <Tooltip {...TOOLTIP_STYLES} />
                   <Bar dataKey="value" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
                 </BarChart>
@@ -164,7 +176,7 @@ export default function MondayCharts() {
 
       {/* ── LINHA 2: Contratos por Status & Carga por Responsável ──────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* 3. Contratos por Status (Donut) */}
+        {/* 3. Contratos por Status */}
         <div className="panel flex flex-col p-6 h-[340px]">
           <div className="flex items-center gap-2 mb-2">
             <Layers className="w-4 h-4 text-emerald-400" />
@@ -172,7 +184,7 @@ export default function MondayCharts() {
           </div>
 
           {loading ? (
-            <div className="flex-1 flex items-center justify-center text-[12px] text-[var(--hq-text-ghost)]">Carregando...</div>
+            <div className="flex-1 flex items-center justify-center text-[12px] text-[#a1a1aa]">Carregando...</div>
           ) : (
             <div className="flex-1 w-full flex items-center">
               <div className="w-1/2 h-full">
@@ -192,9 +204,9 @@ export default function MondayCharts() {
                   <div key={idx} className="flex items-center justify-between text-[11px]">
                     <div className="flex items-center gap-2 truncate">
                       <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: PALETTE[(idx + 2) % PALETTE.length] }} />
-                      <span className="text-[var(--hq-text-dim)] truncate">{entry.name}</span>
+                      <span className="text-[#d4d4d8] font-medium truncate">{entry.name}</span>
                     </div>
-                    <span className="num font-semibold text-[var(--hq-text)] ml-2">{entry.value}</span>
+                    <span className="num font-semibold text-white ml-2">{entry.value}</span>
                   </div>
                 ))}
               </div>
@@ -202,7 +214,7 @@ export default function MondayCharts() {
           )}
         </div>
 
-        {/* 4. Carga por Responsável — Comercial (Barras Horizontais) */}
+        {/* 4. Carga por Responsável — Comercial */}
         <div className="panel flex flex-col p-6 min-h-[340px] h-full">
           <div className="flex items-center gap-2 mb-2">
             <UserCheck className="w-4 h-4 text-purple-400" />
@@ -210,7 +222,7 @@ export default function MondayCharts() {
           </div>
 
           {loading ? (
-            <div className="flex-1 flex items-center justify-center text-[12px] text-[var(--hq-text-ghost)]">Carregando...</div>
+            <div className="flex-1 flex items-center justify-center text-[12px] text-[#a1a1aa]">Carregando...</div>
           ) : (
             <div className="flex-1 w-full mt-2 h-[260px]">
               <ResponsiveContainer width="100%" height="100%">
@@ -219,8 +231,25 @@ export default function MondayCharts() {
                   layout="vertical"
                   margin={{ top: 10, right: 25, left: 15, bottom: 10 }}
                 >
-                  <XAxis type="number" allowDecimals={false} stroke="var(--hq-text-ghost)" fontSize={10} tickLine={false} axisLine={false} />
-                  <YAxis type="category" dataKey="name" stroke="var(--hq-text-ghost)" fontSize={11} tickLine={false} axisLine={false} width={65} />
+                  <XAxis
+                    type="number"
+                    allowDecimals={false}
+                    stroke="#a1a1aa"
+                    fontSize={11}
+                    fontWeight={500}
+                    tickLine={{ stroke: "#71717a" }}
+                    axisLine={{ stroke: "#52525b" }}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    stroke="#f4f4f5"
+                    fontSize={12}
+                    fontWeight={600}
+                    tickLine={false}
+                    axisLine={false}
+                    width={70}
+                  />
                   <Tooltip {...TOOLTIP_STYLES} />
                   <Bar dataKey="value" fill="#8b5cf6" radius={[0, 4, 4, 0]} barSize={18} />
                 </BarChart>
@@ -237,11 +266,11 @@ export default function MondayCharts() {
             <Activity className="w-4 h-4 text-blue-400" />
             <span className="eyebrow">Propostas — Progresso</span>
           </div>
-          <span className="num text-[12px] text-[var(--hq-text-ghost)]">{totalPropostas} propostas totais</span>
+          <span className="num text-[12px] text-[#a1a1aa]">{totalPropostas} propostas totais</span>
         </div>
 
         {loading ? (
-          <div className="py-6 text-center text-[12px] text-[var(--hq-text-ghost)]">Carregando...</div>
+          <div className="py-6 text-center text-[12px] text-[#a1a1aa]">Carregando...</div>
         ) : (
           <div className="space-y-4">
             <div className="h-6 w-full rounded-lg bg-white/[0.04] overflow-hidden flex">
@@ -266,8 +295,8 @@ export default function MondayCharts() {
               {data.propostasProgresso.map((item, idx) => (
                 <div key={idx} className="flex items-center gap-1.5 text-[11px]">
                   <span className="w-2.5 h-2.5 rounded-full" style={{ background: PALETTE[idx % PALETTE.length] }} />
-                  <span className="text-[var(--hq-text-dim)]">{item.name}:</span>
-                  <span className="num font-semibold text-[var(--hq-text)]">{item.value}</span>
+                  <span className="text-[#d4d4d8] font-medium">{item.name}:</span>
+                  <span className="num font-semibold text-white">{item.value}</span>
                 </div>
               ))}
             </div>
