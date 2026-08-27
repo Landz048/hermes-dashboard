@@ -15,7 +15,8 @@ function useCountUp(target: number, duration = 1200) {
   const raf = useRef<number | null>(null);
 
   useEffect(() => {
-    if (target === 0) {
+    const num = Number(target) || 0;
+    if (num === 0) {
       setVal(0);
       return;
     }
@@ -23,7 +24,7 @@ function useCountUp(target: number, duration = 1200) {
     const tick = () => {
       const t = Math.min((Date.now() - start) / duration, 1);
       const ease = 1 - Math.pow(1 - t, 4);
-      setVal(Math.round(target * ease));
+      setVal(Math.round(num * ease));
       if (t < 1) raf.current = requestAnimationFrame(tick);
     };
     raf.current = requestAnimationFrame(tick);
@@ -74,7 +75,16 @@ export function MondayCards() {
     fetch("/api/monday")
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        if (d && !d.error) setMetrics(d);
+        if (d) {
+          // Suporta tanto o formato novo { metrics: {...} } quanto o direto
+          const dataMetrics = d.metrics || d;
+          setMetrics({
+            projetosJornada: Number(dataMetrics.projetosJornada) || 0,
+            contratos: Number(dataMetrics.contratos) || 0,
+            propostas: Number(dataMetrics.propostas) || 0,
+            standBy: Number(dataMetrics.standBy) || 0,
+          });
+        }
       })
       .catch((e) => console.error(e))
       .finally(() => setLoading(false));

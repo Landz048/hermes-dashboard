@@ -1,11 +1,18 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { ChevronRight, Trash2, Lightbulb } from "lucide-react";
+import dynamic from "next/dynamic";
+import { Trash2, Lightbulb } from "lucide-react";
 import { HermesBriefing } from "@/components/hermes-briefing";
 import { ApprovalInbox } from "@/components/approval-inbox";
 import { ProposalsCard } from "@/components/proposal-card";
 import { MondayCards } from "@/components/monday-cards";
+
+// Carregamento dinâmico sem SSR para gráficos Recharts
+const MondayCharts = dynamic(
+  () => import("@/components/monday-charts").then((mod) => mod.MondayCharts),
+  { ssr: false }
+);
 
 // ── Types ─────────────────────────────────────────────────
 interface BuildIdea { title: string; description: string; effort: string }
@@ -310,14 +317,19 @@ export default function Dashboard() {
               <MondayCards />
             </div>
           </div>
+          
+          {/* Gráficos Recharts do Monday */}
+          <div className="hq-rise" style={rise(3)}>
+            <MondayCharts />
+          </div>
         </div>
 
         {/* ── Brief + Approval inbox (side-by-side on wide) ─ */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 items-start">
-          <div className="xl:col-span-2 hq-rise" style={rise(3)}>
+          <div className="xl:col-span-2 hq-rise" style={rise(4)}>
             <HermesBriefing />
           </div>
-          <div className="xl:col-span-1 hq-rise" style={rise(4)}>
+          <div className="xl:col-span-1 hq-rise" style={rise(5)}>
             <ApprovalInbox compact />
           </div>
         </div>
@@ -326,10 +338,10 @@ export default function Dashboard() {
         <div className="mt-10">
           <SectionLabel>Operação & Execução</SectionLabel>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            <div className="hq-rise" style={rise(5)}>
+            <div className="hq-rise" style={rise(6)}>
               <HermesKanbanPanel kanban={data.hermesKanban} />
             </div>
-            <div className="hq-rise" style={rise(6)}>
+            <div className="hq-rise" style={rise(7)}>
               <IdeasPanel buildIdeas={data.topBuildIdeas} />
             </div>
           </div>
