@@ -16,6 +16,7 @@ import {
   Workflow,
   Menu,
   X,
+  MessageSquare,
 } from "lucide-react";
 
 const navGroups = [
@@ -24,6 +25,7 @@ const navGroups = [
     items: [
       { href: "/", label: "Painel Geral", icon: Home },
       { href: "/hermes", label: "Hermes", icon: Cpu },
+      { href: "/chat", label: "Hermes Chat", icon: MessageSquare },
       { href: "/tasks", label: "Tarefas", icon: ClipboardList },
     ],
   },
@@ -54,8 +56,8 @@ const navGroups = [
 // Barra móvel inferior (5 principais abas)
 const mobileTabsRaw = [
   { href: "/", label: "Painel", icon: Home },
+  { href: "/chat", label: "Chat", icon: MessageSquare },
   { href: "/content-os", label: "Pipeline", icon: Workflow },
-  //{ href: "/tasks", label: "Tarefas", icon: ClipboardList },
   { href: "/memory-wiki", label: "Base", icon: BookOpen },
   { href: "/agents", label: "Agentes", icon: Bot },
 ];
